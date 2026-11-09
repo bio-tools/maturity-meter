@@ -2,19 +2,24 @@
 Helper for constructing GitHub API request headers using configured credentials.
 """
 
-from bridge.config import settings
+from maturity_meter.config import get_settings
 
 
 def get_github_headers() -> dict:
     """
     Construct headers for GitHub API requests.
 
+    The ``Authorization`` header is only included when a token is configured
+    via ``MATURITY_METER_GITHUB_TOKEN``.
+
     Returns
     -------
     dict
-        A dictionary containing the authorization and accept headers.
+        A dictionary containing the accept header and, if configured, the
+        authorization header.
     """
-    return {
-        "Authorization": f"Bearer {settings.github_token}",
-        "Accept": "application/vnd.github+json",
-    }
+    headers = {"Accept": "application/vnd.github+json"}
+    token = get_settings().github_token
+    if token is not None:
+        headers["Authorization"] = f"Bearer {token.get_secret_value()}"
+    return headers
