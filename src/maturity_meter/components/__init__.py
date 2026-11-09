@@ -5,6 +5,4 @@ and combined.
 
 from .combine import combine
 
-__all__ = [
-    "combine"
-]
+__all__ = ["combine"]

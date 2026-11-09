@@ -28,7 +28,9 @@ class BiotoolsIngestor(Ingestor):
 
         self.biotools_id = biotools_id
 
-    async def _get(self, endpoint: str = "", params: dict | None = None) -> dict[str, Any]:
+    async def _get(
+        self, endpoint: str = "", params: dict | None = None
+    ) -> dict[str, Any]:
         """
         Perform async GET requests to bio.tools API.
 
@@ -51,13 +53,15 @@ class BiotoolsIngestor(Ingestor):
                 response = await client.get(url, params=params)
                 response.raise_for_status()
                 data = response.json()
-                logger.debug(f"Fetched data from bio.tools for ID {self.biotools_id} successfully")
+                logger.debug(f"Fetched data from bio.tools for ID {self.biotools_id}")
                 return data
         except httpx.RequestError as e:
             logger.error(f"Network error while fetching {url}: {e}")
             raise
         except httpx.HTTPStatusError as e:
-            logger.warning(f"HTTP error from bio.tools: {e.response.status_code} for {url}")
+            logger.warning(
+                f"HTTP error from bio.tools: {e.response.status_code} for {url}"
+            )
             raise
 
     async def fetch(self) -> dict[str, Any]:

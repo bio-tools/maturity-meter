@@ -37,9 +37,7 @@ def test_logging_configuration_sets_package_level():
 
     assert package_logger.name == "maturity_meter"
     assert (
-        logging.getLogger(
-            "maturity_meter.services.processing"
-        ).getEffectiveLevel()
+        logging.getLogger("maturity_meter.services.processing").getEffectiveLevel()
         == logging.DEBUG
     )
 
@@ -60,6 +58,4 @@ def test_http_server_settings_are_typed(monkeypatch):
 
     assert settings.server_port == 9000
     assert settings.server_root_path == "/services/maturity_meter"
-    assert str(settings.public_base_url) == (
-        "https://example.org/maturity_meter/"
-    )
+    assert str(settings.public_base_url) == ("https://example.org/maturity_meter/")

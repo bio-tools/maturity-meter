@@ -26,12 +26,19 @@ class GitHubIngestor(Ingestor):
         self.owner = owner
         self.repo = repo
 
-    async def _get(self, url: str, *, params: dict | None = None, headers: dict | None = None) -> dict[str, Any]:
-        # Ask for topics in the repo payload as well (mercy preview still matters in practice).
+    async def _get(
+        self, url: str, *, params: dict | None = None, headers: dict | None = None
+    ) -> dict[str, Any]:
+        # Ask for topics in the repo payload as well
+        # (mercy preview still matters in practice).
         base_headers = get_github_headers()
         want_topics = "application/vnd.github.mercy-preview+json"
         accept = base_headers.get("Accept", "application/vnd.github+json")
-        merged = {**base_headers, **(headers or {}), "Accept": f"{accept}; {want_topics}"}
+        merged = {
+            **base_headers,
+            **(headers or {}),
+            "Accept": f"{accept}; {want_topics}",
+        }
 
         try:
             async with httpx.AsyncClient(timeout=15) as client:
@@ -94,7 +101,8 @@ class GitHubIngestor(Ingestor):
             Latest release JSON, or None when GitHub returns 404 (no releases).
         """
         url = f"{self.api_base}/repos/{self.owner}/{self.repo}/releases/latest"
-        # Include the version header GitHub recommends; Accept is already set in get_github_headers().
+        # Include the version header GitHub recommends;
+        # Accept is already set in get_github_headers().
         headers = {"X-GitHub-Api-Version": "2022-11-28"}
         try:
             logger.debug(f"Fetching latest release: {url}")
