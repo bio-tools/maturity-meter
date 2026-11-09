@@ -6,63 +6,23 @@ framework-specific parsing, rendering, and transport details outside this layer.
 
 import logging
 from dataclasses import dataclass
+from typing import Any
+
+from maturity_meter.components import combine
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class ProcessingResult:
-    """Result returned by the processing service.
+class MaturityResult:
+    """Result returned by the evaluation service."""
 
-    Parameters
-    ----------
-    input_text : str
-        Text received from a public entry point.
-    output_text : str
-        Processed text returned to the caller.
-    """
-
-    input_text: str
-    output_text: str
+    maturity_placeholder: Any
 
 
-def process_text(text: str) -> ProcessingResult:
-    """Process text through the reusable service layer.
-
-    Parameters
-    ----------
-    text : str
-        Input text to process.
-
-    Returns
-    -------
-    ProcessingResult
-        Processed result.
-    """
+def evaluate_maturity() -> MaturityResult:
+    """Process text through the reusable service layer."""
     # This starter transformation is intentionally simple. Replace the body of
     # this function with the real project logic while keeping the typed result.
-    logger.debug("Processing text input")
-    return ProcessingResult(input_text=text, output_text=text.upper())
-
-
-def make_upper(text: str) -> str:
-    """Convert input text to uppercase.
-
-    Parameters
-    ----------
-    text : str
-        Input text to convert.
-
-    Returns
-    -------
-    str
-        Uppercase text.
-
-    Examples
-    --------
-    >>> make_upper("abc")
-    'ABC'
-    """
-    # Keep this small helper as a thin wrapper so processing behavior has one
-    # implementation.
-    return process_text(text).output_text
+    logger.debug("Evaluating maturity")
+    return MaturityResult(maturity_placeholder=combine())
