@@ -1,0 +1,35 @@
+[project]
+site_name = "Maturity meter"
+site_description = "Automated maturity model for research software tools"
+docs_dir = "docs"
+copyright = "Copyright Maturity meter contributors."
+site_url = "https://bio-tools.github.io/biohackathon2026"
+repo_url = "https://github.com/bio-tools/biohackathon2026"
+repo_name = "biohackathon2026"
+
+[project.theme]
+features = [
+  # Group top-level pages as sections in the left navigation.
+  "navigation.sections",
+  # Add a back-to-top button on long documentation pages.
+  "navigation.top",
+  # Link each page to its source and editing view in the repository.
+  "content.action.edit",
+  "content.action.view",
+]
+
+[project.markdown_extensions]
+# Render note, warning, tip, and similar callout blocks.
+admonition = {}
+# Add stable links to each generated heading.
+toc.permalink = true
+# Support collapsible admonitions with ??? syntax.
+"pymdownx.details" = {}
+# Improve fenced code blocks, especially inside admonitions.
+"pymdownx.superfences" = {}
+
+# Generate the technical reference from public NumPy-style Python docstrings.
+[project.plugins.mkdocstrings.handlers.python]
+paths = ["src"]
+options.docstring_style = "numpy"
+options.show_source = true

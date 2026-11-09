@@ -1,0 +1,27 @@
+name: Quality
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Run quality checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-python-project
+      - name: Run Ruff lint
+        run: poetry run ruff check .
+      - name: Check Ruff formatting
+        run: poetry run ruff format --check .
+      - name: Run Mypy
+        run: poetry run mypy src
