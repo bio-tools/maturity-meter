@@ -33,6 +33,6 @@ See [Functions and operations](functions.md) for supported operations, inputs, o
 ## Entry points
 
 ```bash
-poetry run maturity-meter process "example input"
+poetry run maturity-meter evaluate
 poetry run maturity-meter-serve
 ```

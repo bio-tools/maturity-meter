@@ -7,7 +7,7 @@ terminal formatting.
 
 import typer
 
-from maturity_meter.adapters.cli.commands import process
+from maturity_meter.adapters.cli.commands import evaluate
 from maturity_meter.logging_config import configure_logging
 
 # The Typer app is the command registry. Add new commands by importing their
@@ -20,7 +20,7 @@ def root() -> None:
     """Run the application's subcommands."""
 
 
-app.command(name="process")(process.command)
+app.command(name="evaluate")(evaluate.command)
 
 
 def main() -> None:

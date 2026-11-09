@@ -8,8 +8,8 @@ service layer.
 from fastapi import FastAPI
 
 from maturity_meter.adapters.api.routes import (
+    evaluation,
     health,
-    processing,
 )
 from maturity_meter.config import Settings, get_settings
 
@@ -46,7 +46,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # Register small route modules here. Keeping registration explicit makes it
     # easy to see which API surfaces are included for this generated project.
     api.include_router(health.router)
-    api.include_router(processing.router)
+    api.include_router(evaluation.router)
 
     return api
 
