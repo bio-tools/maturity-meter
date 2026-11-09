@@ -3,9 +3,9 @@ site_name = "Maturity meter"
 site_description = "Automated maturity model for research software tools"
 docs_dir = "docs"
 copyright = "Copyright Maturity meter contributors."
-site_url = "https://bio-tools.github.io/biohackathon2026"
-repo_url = "https://github.com/bio-tools/biohackathon2026"
-repo_name = "biohackathon2026"
+site_url = "https://bio-tools.github.io/maturity-meter"
+repo_url = "https://github.com/bio-tools/maturity-meter"
+repo_name = "maturity-meter"
 
 [project.theme]
 features = [

@@ -1,14 +1,14 @@
 # Maturity meter
 
-[![CI](https://github.com/bio-tools/biohackathon2026/actions/workflows/tests.yml/badge.svg)](https://github.com/bio-tools/biohackathon2026/actions/workflows/tests.yml)
-[![Documentation](https://img.shields.io/badge/docs-online-blue?labelColor=gray)](https://bio-tools.github.io/biohackathon2026)
-[![Usage](https://img.shields.io/badge/usage-guide-blue?labelColor=gray)](https://github.com/bio-tools/biohackathon2026/blob/HEAD/docs/usage.md)
-[![License](https://img.shields.io/badge/license-view-blue?labelColor=gray)](https://github.com/bio-tools/biohackathon2026/blob/HEAD/LICENSE)
+[![CI](https://github.com/bio-tools/maturity-meter/actions/workflows/tests.yml/badge.svg)](https://github.com/bio-tools/maturity-meter/actions/workflows/tests.yml)
+[![Documentation](https://img.shields.io/badge/docs-online-blue?labelColor=gray)](https://bio-tools.github.io/maturity-meter)
+[![Usage](https://img.shields.io/badge/usage-guide-blue?labelColor=gray)](https://github.com/bio-tools/maturity-meter/blob/HEAD/docs/usage.md)
+[![License](https://img.shields.io/badge/license-view-blue?labelColor=gray)](https://github.com/bio-tools/maturity-meter/blob/HEAD/LICENSE)
 ![Tool Type](https://img.shields.io/badge/tool%20type-Command--line%20tool%20%7C%20Library%20%7C%20Web%20API-blue?labelColor=gray)
 
 Automated maturity model for research software tools
 
-Homepage: https://bio-tools.github.io/biohackathon2026
+Homepage: https://bio-tools.github.io/maturity-meter
 
 ## Purpose
 
@@ -88,7 +88,7 @@ note: "Plot the resulting maturity"
 
 ## Documentation
 
-Read the [project documentation](https://bio-tools.github.io/biohackathon2026).
+Read the [project documentation](https://bio-tools.github.io/maturity-meter).
 
 - User guide: installation, configuration, usage, and examples
 - Developer guide: development, tests, contribution, and reference

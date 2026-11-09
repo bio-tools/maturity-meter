@@ -27,9 +27,9 @@ docs = ["zensical", "mkdocstrings[python]"]
 "maturity-meter-serve" = "maturity_meter.adapters.server_runner:main"
 
 [project.urls]
-"Source Code" = "https://github.com/bio-tools/biohackathon2026"
-Homepage = "https://bio-tools.github.io/biohackathon2026"
-Documentation = "https://bio-tools.github.io/biohackathon2026"
+"Source Code" = "https://github.com/bio-tools/maturity-meter"
+Homepage = "https://bio-tools.github.io/maturity-meter"
+Documentation = "https://bio-tools.github.io/maturity-meter"
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

@@ -15,12 +15,12 @@
   "author": [{"@type": "Organization", "name": "Project team"}],
   "identifier": [{"@type": "PropertyValue", "propertyID": "placeholder", "value": "REPLACE_WITH_PERSISTENT_IDENTIFIER"}],
   "keywords": ["software maturity", "FAIR software", "Open science", "Software management", "Software engineering"],
-  "codeRepository": "https://github.com/bio-tools/biohackathon2026",
-  "continuousIntegration": "https://github.com/bio-tools/biohackathon2026/actions",
+  "codeRepository": "https://github.com/bio-tools/maturity-meter",
+  "continuousIntegration": "https://github.com/bio-tools/maturity-meter/actions",
   "license": "https://spdx.org/licenses/Apache-2.0.html",
   "isAccessibleForFree": true,
-  "url": "https://bio-tools.github.io/biohackathon2026",
-  "softwareHelp": {"@type": "CreativeWork", "url": "https://bio-tools.github.io/biohackathon2026"},
+  "url": "https://bio-tools.github.io/maturity-meter",
+  "softwareHelp": {"@type": "CreativeWork", "url": "https://bio-tools.github.io/maturity-meter"},
   "runtimePlatform": ["Docker"],
   "operatingSystem": ["Platform independent"]
 }
