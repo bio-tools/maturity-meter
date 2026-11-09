@@ -5,7 +5,7 @@ Helper for constructing GitHub API request headers using configured credentials.
 from maturity_meter.config import get_settings
 
 
-def get_github_headers() -> dict:
+def get_github_headers() -> dict[str, str]:
     """
     Construct headers for GitHub API requests.
 

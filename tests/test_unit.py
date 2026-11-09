@@ -53,3 +53,19 @@ def test_http_server_settings_are_typed(monkeypatch):
     assert settings.server_port == 9000
     assert settings.server_root_path == "/services/maturity_meter"
     assert str(settings.public_base_url) == ("https://example.org/maturity_meter/")
+
+
+def test_github_headers_use_configured_token(monkeypatch):
+    """Ensure the GitHub token is sent only when configured."""
+    from maturity_meter.config import get_settings
+    from maturity_meter.external.github.github_auth import get_github_headers
+
+    monkeypatch.chdir("/")  # avoid picking up a local .env
+    monkeypatch.delenv("MATURITY_METER_GITHUB_TOKEN", raising=False)
+    get_settings.cache_clear()
+    assert "Authorization" not in get_github_headers()
+
+    monkeypatch.setenv("MATURITY_METER_GITHUB_TOKEN", "abc")
+    get_settings.cache_clear()
+    assert get_github_headers()["Authorization"] == "Bearer abc"
+    get_settings.cache_clear()

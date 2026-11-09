@@ -9,7 +9,7 @@ should inject values through their platform or secrets manager.
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import AnyHttpUrl, Field, field_validator
+from pydantic import AnyHttpUrl, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -30,6 +30,9 @@ class Settings(BaseSettings):
         Whether the development server watches source files for changes.
     public_base_url : pydantic.AnyHttpUrl | None
         Optional externally visible URL published in API metadata.
+    github_token : pydantic.SecretStr | None
+        Optional GitHub personal access token. Requests are unauthenticated
+        (and heavily rate limited) when omitted.
     """
 
     model_config = SettingsConfigDict(
@@ -44,6 +47,7 @@ class Settings(BaseSettings):
     server_root_path: str = ""
     server_reload: bool = False
     public_base_url: AnyHttpUrl | None = None
+    github_token: SecretStr | None = None
 
     @field_validator("server_host")
     @classmethod

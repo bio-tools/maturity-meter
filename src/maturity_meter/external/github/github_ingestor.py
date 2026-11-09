@@ -27,7 +27,11 @@ class GitHubIngestor(Ingestor):
         self.repo = repo
 
     async def _get(
-        self, url: str, *, params: dict | None = None, headers: dict | None = None
+        self,
+        url: str,
+        *,
+        params: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         # Ask for topics in the repo payload as well
         # (mercy preview still matters in practice).
@@ -44,7 +48,8 @@ class GitHubIngestor(Ingestor):
             async with httpx.AsyncClient(timeout=15) as client:
                 resp = await client.get(url, headers=merged, params=params)
                 resp.raise_for_status()
-                return resp.json()
+                data: dict[str, Any] = resp.json()
+                return data
         except httpx.RequestError as e:
             logger.error(f"Network error while fetching {url}: {e}")
             raise

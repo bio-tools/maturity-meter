@@ -29,7 +29,7 @@ class BiotoolsIngestor(Ingestor):
         self.biotools_id = biotools_id
 
     async def _get(
-        self, endpoint: str = "", params: dict | None = None
+        self, endpoint: str = "", params: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """
         Perform async GET requests to bio.tools API.
@@ -52,7 +52,7 @@ class BiotoolsIngestor(Ingestor):
             async with httpx.AsyncClient(timeout=10) as client:
                 response = await client.get(url, params=params)
                 response.raise_for_status()
-                data = response.json()
+                data: dict[str, Any] = response.json()
                 logger.debug(f"Fetched data from bio.tools for ID {self.biotools_id}")
                 return data
         except httpx.RequestError as e:
