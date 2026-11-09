@@ -4,20 +4,14 @@ import logging
 
 from maturity_meter.config import Settings
 from maturity_meter.logging_config import configure_logging
-from maturity_meter.services.processing import make_upper, process_text
+from maturity_meter.services.processing import evaluate_maturity
 
 
-def test_process_text_returns_structured_result():
-    """Ensure service processing preserves input and returns output."""
-    result = process_text("abc")
+def test_evaluate_maturity_returns_structured_result():
+    """Ensure the service returns a structured maturity result."""
+    result = evaluate_maturity()
 
-    assert result.input_text == "abc"
-    assert result.output_text == "ABC"
-
-
-def test_make_upper_reuses_processing_service():
-    """Ensure convenience helper follows service behavior."""
-    assert make_upper("research") == "RESEARCH"
+    assert result.maturity_placeholder == 1.0
 
 
 def test_runtime_settings_read_project_environment(monkeypatch):

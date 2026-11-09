@@ -4,7 +4,7 @@ from importlib.metadata import PackageNotFoundError, version
 
 import pytest
 
-from maturity_meter import __version__, process_text
+from maturity_meter import __version__, evaluate_maturity
 from maturity_meter.main import main
 
 
@@ -23,12 +23,11 @@ def test_main_is_callable():
     assert callable(main)
 
 
-def test_library_api_processes_text():
+def test_library_api_evaluates_maturity():
     """Ensure reusable service logic is available from the package API."""
-    result = process_text("example")
+    result = evaluate_maturity()
 
-    assert result.input_text == "example"
-    assert result.output_text == "EXAMPLE"
+    assert result.maturity_placeholder == 1.0
 
 
 def test_runtime_settings_import():
