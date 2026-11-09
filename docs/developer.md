@@ -1,74 +1,38 @@
 # Developer guide
 
-## Architecture
-
-The project metadata describes its public functions, interfaces, quality tools,
-and collaboration policy. Keep implementation code and tests in clearly owned
-locations, and keep public files synchronized with that metadata.
-
-## Development setup
+## Setup and checks
 
 ```bash
 poetry install --all-extras
+poetry run ruff format --check .
+poetry run ruff check .
+poetry run mypy src
+poetry run pytest
 ```
 
-## Local checks
+See `CONTRIBUTING.md` for the contribution policy.
 
-| Check | Command |
-| --- | --- |
-| Format | `poetry run ruff format --check .` |
-| Lint | `poetry run ruff check .` |
-| Type check | `poetry run mypy src` |
-| Tests | `poetry run python -m pytest` |
+## Architecture
 
-See `CONTRIBUTING.md` in the repository root for the complete contribution policy.
-
-## Function metadata
-
-The public function descriptions in [Functions and operations](functions.md) should stay aligned with the implemented commands, accepted inputs, emitted outputs, and README `biotools-function` metadata blocks.
-
-## Interface contracts
-
-Keep public interface descriptions aligned with implementation files, documentation, and stability status.
-
-- Command-line tool (Stable)
-- Library (Stable)
-
-## Project architecture
-
-The Python package uses a `src` layout.
-Runtime dependencies point inward: public entry points delegate reusable
-behavior to the service layer.
+The package uses a `src` layout. Entry points call adapters, and adapters call
+services; services must not import adapters.
 
 ```text
-public entry points
-    -> adapters/
-    -> services/
+adapters/  ->  services/
 ```
 
-Services must not import interface adapters.
+## Documentation
 
-Component paths:
-- `src/maturity_meter/services/`
-- `src/maturity_meter/adapters/`
-- `tests/`
+```bash
+poetry install --extras "docs"
+poetry run zensical serve            # preview at http://127.0.0.1:8000/
+poetry run zensical build --strict   # build, warnings as errors
+```
 
-### Command-line tool
+The docs workflow deploys to GitHub Pages from the default branch only. Select
+**GitHub Actions** as the Pages build source in the repository settings first.
 
-See the component paths above.
+## Releases
 
-### Web API
-
-See the component paths above.
-
-## Automation
-
-- `containers.yml`
-- `docs.yml`
-- `metadata.yml`
-- `quality.yml`
-- `tests.yml`
-
-## Documentation publishing
-
-The documentation workflow builds on pushes and pull requests, and deploys to GitHub Pages only from the default branch. In repository Settings → Pages, select **GitHub Actions** as the build source before the first deployment. Repositories created directly through RS Tools configure this automatically when GitHub Pages is available for the account.
+`pyproject.toml` is the source of truth for the version (SemVer). Update
+`project.version`, then run the metadata, test, and docs checks.
