@@ -1,0 +1,26 @@
+{
+  "@context": [
+    "https://w3id.org/codemeta/3.1",
+    {"schema": "https://schema.org/"}
+  ],
+  "@type": "SoftwareSourceCode",
+  "name": "Maturity meter",
+  "description": "This project aims to develop a new, automated, research software maturity model for tools in GitHub or GitLab. The project evaluates whether automated maturity (e.g., documentation quality, FAIR compliance, maintenance, and reuse signals) assessment can provide a scalable and informative complement to manual maturity annotation and assign up-to-date maturity levels.\n\nAs a long-term goal, the maturity model will become part of software disambiguation that goes beyond names, descriptions and topics, allowing for more fine-grained searchability among tools with similar functionality, building on the wealth of metadata in the Research Software Ecosystem to assist researchers searching for and making informed selections of software tools.\n\nThe project combines software metadata from bio.tools and other services of the Research Software Ecosystem, including OpenEBench, repository metadata from code hosting platforms, publication metadata from Europe PMC, and static code analysis using open-source software adapting and building on an automated maturity model recently developed in the more narrowly scoped TDCC-LSH “FAIR Toolbox” project in the Netherlands.",
+  "version": "0.1.0",
+  "developmentStatus": "wip",
+  "applicationCategory": ["Command-line tool", "Library", "Web API"],
+  "applicationSubCategory": ["http://edamontology.org/topic_4010", "http://edamontology.org/topic_4047", "http://edamontology.org/topic_3372"],
+  "schema:featureList": ["http://edamontology.org/operation_2238", "http://edamontology.org/operation_2945", "http://edamontology.org/operation_3799", "http://edamontology.org/operation_0337"],
+  "programmingLanguage": [{"@type": "ComputerLanguage", "name": "Python"}],
+  "author": [{"@type": "Organization", "name": "Project team"}],
+  "identifier": [{"@type": "PropertyValue", "propertyID": "placeholder", "value": "REPLACE_WITH_PERSISTENT_IDENTIFIER"}],
+  "keywords": ["software maturity", "FAIR software", "Open science", "Software management", "Software engineering"],
+  "codeRepository": "https://github.com/bio-tools/biohackathon2026",
+  "continuousIntegration": "https://github.com/bio-tools/biohackathon2026/actions",
+  "license": "https://spdx.org/licenses/Apache-2.0.html",
+  "isAccessibleForFree": true,
+  "url": "https://bio-tools.github.io/biohackathon2026",
+  "softwareHelp": {"@type": "CreativeWork", "url": "https://bio-tools.github.io/biohackathon2026"},
+  "runtimePlatform": ["Docker"],
+  "operatingSystem": ["Platform independent"]
+}

@@ -1,0 +1,26 @@
+# Operating system files
+.DS_Store
+
+# Python bytecode and package metadata
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Test, coverage, and quality-tool output
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Local environments and secrets
+.venv/
+.env
+.env.*
+!.env.example
+
+# Package and documentation builds
+dist/
+build/
+site/
+docs/build/

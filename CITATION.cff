@@ -1,0 +1,16 @@
+cff-version: "1.2.0"
+message: "If you use this software, please cite it using the metadata in this file."
+title: "Maturity meter"
+type: software
+version: "0.1.0"
+abstract: "This project aims to develop a new, automated, research software maturity model for tools in GitHub or GitLab. The project evaluates whether automated maturity (e.g., documentation quality, FAIR compliance, maintenance, and reuse signals) assessment can provide a scalable and informative complement to manual maturity annotation and assign up-to-date maturity levels.\n\nAs a long-term goal, the maturity model will become part of software disambiguation that goes beyond names, descriptions and topics, allowing for more fine-grained searchability among tools with similar functionality, building on the wealth of metadata in the Research Software Ecosystem to assist researchers searching for and making informed selections of software tools.\n\nThe project combines software metadata from bio.tools and other services of the Research Software Ecosystem, including OpenEBench, repository metadata from code hosting platforms, publication metadata from Europe PMC, and static code analysis using open-source software adapting and building on an automated maturity model recently developed in the more narrowly scoped TDCC-LSH “FAIR Toolbox” project in the Netherlands."
+repository-code: "https://github.com/bio-tools/biohackathon2026"
+url: "https://bio-tools.github.io/biohackathon2026"
+authors:
+  - name: "Project team"
+keywords:
+  - "software maturity"
+  - "FAIR software"
+  - "Open science"
+  - "Software management"
+  - "Software engineering"

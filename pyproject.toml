@@ -1,0 +1,63 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "maturity-meter"
+version = "0.1.0"
+description = "Automated maturity model for research software tools"
+readme = "README.md"
+requires-python = ">=3.12"
+license-files = ["LICENSE"]
+dependencies = ["typer", "pydantic-settings"]
+keywords = ["software maturity", "FAIR software ", "Open science", "Software management", "Software engineering"]
+classifiers = ["Programming Language :: Python :: 3", "Operating System :: OS Independent"]
+
+[project.optional-dependencies]
+api = [
+  "fastapi",
+  "uvicorn[standard]",
+]
+test = ["pytest", "fastapi", "httpx"]
+quality = ["pre-commit", "ruff", "mypy"]
+docs = ["zensical", "mkdocstrings[python]"]
+
+[project.scripts]
+"maturity-meter" = "maturity_meter.adapters.cli.app:main"
+"maturity-meter-serve" = "maturity_meter.adapters.server_runner:main"
+
+[project.urls]
+"Source Code" = "https://github.com/bio-tools/biohackathon2026"
+Homepage = "https://bio-tools.github.io/biohackathon2026"
+Documentation = "https://bio-tools.github.io/biohackathon2026"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+  "B",
+  "E",
+  "F",
+  "I",
+  "SIM",
+  "UP",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+strict = true
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = [
+  "fastapi.*",
+  "typer.*",
+]
+ignore_missing_imports = true
