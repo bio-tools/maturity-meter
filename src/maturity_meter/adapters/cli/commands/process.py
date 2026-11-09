@@ -7,7 +7,7 @@ test.
 
 import typer
 
-from maturity_meter.services.processing import process_text
+from maturity_meter.services.processing import evaluate_maturity
 
 
 def run(text: str) -> str:
@@ -25,7 +25,7 @@ def run(text: str) -> str:
     """
     # Keeping command logic in a pure helper makes it straightforward to test
     # without capturing terminal output.
-    return process_text(text).output_text
+    return str(evaluate_maturity().maturity_placeholder)
 
 
 def command(

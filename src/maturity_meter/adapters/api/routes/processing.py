@@ -10,7 +10,7 @@ from maturity_meter.adapters.api.schemas import (
     ProcessRequest,
     ProcessResponse,
 )
-from maturity_meter.services.processing import process_text
+from maturity_meter.services.processing import evaluate_maturity
 
 router = APIRouter(tags=["processing"])
 
@@ -31,8 +31,8 @@ def process(request: ProcessRequest) -> ProcessResponse:
     """
     # Route handlers call services and then map service results back into API
     # response schemas.
-    result = process_text(request.text)
+    result = evaluate_maturity()
     return ProcessResponse(
-        input_text=result.input_text,
-        output_text=result.output_text,
+        input_text=request.text,
+        output_text=str(result.maturity_placeholder),
     )

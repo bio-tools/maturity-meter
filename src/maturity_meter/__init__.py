@@ -8,8 +8,8 @@ Implementation details live in named modules and subpackages such as
 from importlib.metadata import PackageNotFoundError, version
 
 from maturity_meter.services.processing import (
-    ProcessingResult,
-    process_text,
+    MaturityResult,
+    evaluate_maturity,
 )
 
 try:
@@ -22,7 +22,7 @@ except PackageNotFoundError:
 # Keep the public import surface explicit so downstream users can see which
 # names are intended to be stable.
 __all__ = [
-    "ProcessingResult",
+    "MaturityResult",
     "__version__",
-    "process_text",
+    "evaluate_maturity",
 ]

@@ -5,22 +5,16 @@ larger runtime interfaces in dedicated modules.
 """
 
 from maturity_meter.logging_config import configure_logging
-from maturity_meter.services.processing import process_text
+from maturity_meter.services.processing import evaluate_maturity
 
 
-def main(text: str = "Maturity meter") -> None:
-    """Run the package entry point.
-
-    Parameters
-    ----------
-    text : str, default="Maturity meter"
-        Text to process.
-    """
+def main() -> None:
+    """Run the package entry point."""
     configure_logging()
     # Delegate to the service layer so the entry point stays small and
     # testable.
-    result = process_text(text)
-    print(result.output_text)
+    result = evaluate_maturity()
+    print(result.maturity_placeholder)
 
 
 if __name__ == "__main__":

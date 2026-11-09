@@ -110,7 +110,7 @@ Run the configured checks:
 poetry run ruff format --check .
 poetry run ruff check .
 poetry run mypy src
-poetry run python -m pytest
+poetry run pytest
 ```
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the contribution and code-review policy.
 
