@@ -2,6 +2,10 @@
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+# resqui is installed from the bio-tools fork until its fixes are released.
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [project]
 name = "maturity-meter"
 version = "0.1.0"
@@ -9,7 +13,7 @@ description = "Automated maturity model for research software tools"
 readme = "README.md"
 requires-python = ">=3.12"
 license-files = ["LICENSE"]
-dependencies = ["typer", "pydantic-settings", "httpx (>=0.28.1,<0.29.0)"]
+dependencies = ["typer", "pydantic-settings", "httpx (>=0.28.1,<0.29.0)", "resqui @ git+https://github.com/bio-tools/QualityPipelines.git@main"]
 keywords = ["software maturity", "FAIR software ", "Open science", "Software management", "Software engineering"]
 classifiers = ["Programming Language :: Python :: 3", "Operating System :: OS Independent"]
 

@@ -7,6 +7,11 @@ ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1
 WORKDIR /build
 
+# git is needed to fetch the resqui fork (a git dependency); builder stage only.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY pyproject.toml README.md ./
 COPY src ./src
 RUN python -m pip wheel --wheel-dir /wheels ".[api]"
@@ -26,9 +31,16 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
+# git is needed at runtime: resqui clones the repositories it assesses.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN adduser --disabled-password --gecos "" --uid 10001 appuser
 COPY --from=builder /wheels /wheels
-RUN python -m pip install --no-cache-dir /wheels/*.whl && rm -rf /wheels
+# The builder stage collected every dependency as a wheel, so nothing needs
+# resolving here (and pip would not match the resqui wheel to its git URL).
+RUN python -m pip install --no-cache-dir --no-deps /wheels/*.whl && rm -rf /wheels
 
 USER appuser
 EXPOSE 8000
