@@ -4,16 +4,25 @@ This module provides a tiny package-level command for quick smoke tests. Keep
 larger runtime interfaces in dedicated modules.
 """
 
+import sys
+
 from maturity_meter.logging_config import configure_logging
+from maturity_meter.models import EvaluationRequest
 from maturity_meter.services.processing import evaluate_maturity
 
 
 def main() -> None:
-    """Run the package entry point."""
+    """Run the package entry point.
+
+    Evaluates the repository URL given as the first command-line argument. Use
+    the ``maturity-meter`` command for DOIs and bio.tools IDs.
+    """
+    if len(sys.argv) != 2:
+        sys.exit("usage: python -m maturity_meter <repository-url>")
     configure_logging()
     # Delegate to the service layer so the entry point stays small and
     # testable.
-    result = evaluate_maturity()
+    result = evaluate_maturity(EvaluationRequest(repository=sys.argv[1]))
     print(result.maturity_placeholder)
 
 

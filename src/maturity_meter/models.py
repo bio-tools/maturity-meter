@@ -1,0 +1,146 @@
+"""Input models shared by every Maturity meter interface.
+
+The library, CLI, and web API all describe what to evaluate with
+:class:`EvaluationRequest`, so validation rules live in one place.
+"""
+
+import re
+from urllib.parse import urlparse
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+SUPPORTED_HOSTS = ("github.com", "gitlab.com")
+
+_DOI_PATTERN = re.compile(r"^10\.\d{4,9}/\S+$")
+_DOI_PREFIX_PATTERN = re.compile(
+    r"^(?:https?://(?:dx\.)?doi\.org/|doi:)", re.IGNORECASE
+)
+_BIOTOOLS_ID_PATTERN = re.compile(r"^[A-Za-z0-9_.\-]+$")
+
+
+class EvaluationRequest(BaseModel):
+    """What to evaluate.
+
+    Parameters
+    ----------
+    repository : str
+        URL of a GitHub or GitLab repository. Normalized to
+        ``https://<host>/<path>`` without a ``.git`` suffix or trailing slash.
+    dois : list[str]
+        Optional DOIs of publications about the software. Normalized to the
+        bare ``10.xxxx/...`` form.
+    biotools_id : str | None
+        Optional bio.tools identifier of the software.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    repository: str
+    dois: list[str] = Field(default_factory=list)
+    biotools_id: str | None = None
+
+    @field_validator("repository")
+    @classmethod
+    def normalize_repository(cls, value: str) -> str:
+        """Validate and canonicalize a repository URL.
+
+        Parameters
+        ----------
+        value : str
+            Repository URL as supplied by the user.
+
+        Returns
+        -------
+        str
+            Canonical ``https`` repository URL.
+
+        Raises
+        ------
+        ValueError
+            If the host is unsupported or the path is not ``owner/repo``.
+        """
+        parsed = urlparse(value.strip())
+        host = (parsed.hostname or "").lower().removeprefix("www.")
+        if parsed.scheme not in ("http", "https") or host not in SUPPORTED_HOSTS:
+            raise ValueError(
+                f"Repository must be an http(s) URL on {' or '.join(SUPPORTED_HOSTS)}"
+            )
+        path = parsed.path.strip("/").removesuffix(".git")
+        if len(path.split("/")) < 2 or not all(path.split("/")):
+            raise ValueError("Repository URL must include an owner and a repository")
+        return f"https://{host}/{path}"
+
+    @field_validator("dois")
+    @classmethod
+    def normalize_dois(cls, values: list[str]) -> list[str]:
+        """Strip DOI URL prefixes, validate, and drop duplicates.
+
+        Parameters
+        ----------
+        values : list[str]
+            DOIs as supplied by the user.
+
+        Returns
+        -------
+        list[str]
+            Unique bare DOIs in their original order.
+
+        Raises
+        ------
+        ValueError
+            If an entry is not a valid DOI.
+        """
+        normalized: dict[str, None] = {}
+        for value in values:
+            doi = _DOI_PREFIX_PATTERN.sub("", value.strip())
+            if not _DOI_PATTERN.match(doi):
+                raise ValueError(f"Invalid DOI: {value!r}")
+            normalized[doi] = None
+        return list(normalized)
+
+    @field_validator("biotools_id")
+    @classmethod
+    def normalize_biotools_id(cls, value: str | None) -> str | None:
+        """Validate a bio.tools identifier, treating blank as unset.
+
+        Parameters
+        ----------
+        value : str | None
+            bio.tools identifier as supplied by the user.
+
+        Returns
+        -------
+        str | None
+            Stripped identifier, or ``None`` when blank.
+
+        Raises
+        ------
+        ValueError
+            If the identifier contains unsupported characters.
+        """
+        if value is None or not value.strip():
+            return None
+        value = value.strip()
+        if not _BIOTOOLS_ID_PATTERN.match(value):
+            raise ValueError(f"Invalid bio.tools ID: {value!r}")
+        return value
+
+    @property
+    def host(self) -> str:
+        """Hosting platform domain, e.g. ``github.com``."""
+        return urlparse(self.repository).hostname or ""
+
+    @property
+    def repo_path(self) -> str:
+        """Repository path on the host, e.g. ``owner/repo``."""
+        return urlparse(self.repository).path.strip("/")
+
+    @property
+    def owner(self) -> str:
+        """Repository owner (namespace; may contain subgroups on GitLab)."""
+        return self.repo_path.rsplit("/", 1)[0]
+
+    @property
+    def repo(self) -> str:
+        """Repository name."""
+        return self.repo_path.rsplit("/", 1)[1]

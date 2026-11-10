@@ -4,7 +4,7 @@ from importlib.metadata import PackageNotFoundError, version
 
 import pytest
 
-from maturity_meter import __version__, evaluate_maturity
+from maturity_meter import EvaluationRequest, __version__, evaluate_maturity
 from maturity_meter.main import main
 
 
@@ -25,7 +25,7 @@ def test_main_is_callable():
 
 def test_library_api_evaluates_maturity():
     """Ensure reusable service logic is available from the package API."""
-    result = evaluate_maturity()
+    result = evaluate_maturity(EvaluationRequest(repository="https://github.com/o/r"))
 
     assert result.maturity_placeholder == 1.0
 
