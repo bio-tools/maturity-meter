@@ -1,5 +1,5 @@
-from maturity_meter.models import IngestedData
+from maturity_meter.models import IngestedData, MetricResult
 
 
-def eval(data: IngestedData) -> float | None:
-    return None
+def eval(data: IngestedData) -> list[MetricResult]:
+    return []

@@ -293,10 +293,36 @@ class IngestedData:
     edam: dict[str, dict[str, Any] | None] = field(default_factory=dict)
 
 
-class Evaluation(BaseModel):
-    """Maturity score per dimension for one evaluation.
+class MetricResult(BaseModel):
+    """Result of one metric within a maturity dimension.
 
-    Each score is a float, or ``None`` when the dimension was not assessed.
+    Parameters
+    ----------
+    name : str
+        Name of the metric, e.g. ``"star_count"``.
+    value : float | None
+        Score of the metric, or ``None`` when it was not assessed. Required,
+        so "not assessed" is always stated explicitly.
+    suggestions : list[str]
+        Actionable ways to improve the score.
+    note : str | None
+        Optional remark, e.g. on missing data or caveats.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    value: float | None
+    suggestions: list[str] = Field(default_factory=list)
+    note: str | None = None
+
+
+class Evaluation(BaseModel):
+    """Metric results per maturity dimension for one evaluation.
+
+    Each dimension is a list of :class:`MetricResult`, one per metric; an
+    empty list means no metric of that dimension was computed.
+
     Compatibility, FAIRness, maintainability, security and sustainability
     follow the EVERSE quality dimensions
     (https://w3id.org/everse/i/dimensions); scientific impact is our own.
@@ -304,9 +330,9 @@ class Evaluation(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    compatibility: float | None = None
-    fairness: float | None = None
-    maintainability: float | None = None
-    scientific_impact: float | None = None
-    security: float | None = None
-    sustainability: float | None = None
+    compatibility: list[MetricResult]
+    fairness: list[MetricResult]
+    maintainability: list[MetricResult]
+    scientific_impact: list[MetricResult]
+    security: list[MetricResult]
+    sustainability: list[MetricResult]
