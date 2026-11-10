@@ -5,6 +5,7 @@ It delegates project logic to the service layer so command behavior is easy to
 test.
 """
 
+import asyncio
 from typing import Annotated
 
 import typer
@@ -29,7 +30,7 @@ def run(request: EvaluationRequest) -> str:
     """
     # Keeping command logic in a pure helper makes it straightforward to test
     # without capturing terminal output.
-    return str(evaluate_maturity(request).maturity_placeholder)
+    return str(asyncio.run(evaluate_maturity(request)).maturity_placeholder)
 
 
 def command(

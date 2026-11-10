@@ -1,5 +1,6 @@
 """Smoke tests for the generated Python package."""
 
+import asyncio
 from importlib.metadata import PackageNotFoundError, version
 
 import pytest
@@ -23,9 +24,17 @@ def test_main_is_callable():
     assert callable(main)
 
 
-def test_library_api_evaluates_maturity():
+def test_library_api_evaluates_maturity(monkeypatch):
     """Ensure reusable service logic is available from the package API."""
-    result = evaluate_maturity(EvaluationRequest(repository="https://github.com/o/r"))
+    from maturity_meter.models import IngestedData
+    from maturity_meter.services import processing
+
+    async def fake_ingest(request):
+        return IngestedData(request=request, repository={})
+
+    monkeypatch.setattr(processing, "ingest", fake_ingest)
+    request = EvaluationRequest(repository="https://github.com/o/r")
+    result = asyncio.run(evaluate_maturity(request))
 
     assert result.maturity_placeholder == 1.0
 

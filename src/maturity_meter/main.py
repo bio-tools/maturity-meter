@@ -4,6 +4,7 @@ This module provides a tiny package-level command for quick smoke tests. Keep
 larger runtime interfaces in dedicated modules.
 """
 
+import asyncio
 import sys
 
 from maturity_meter.logging_config import configure_logging
@@ -22,7 +23,8 @@ def main() -> None:
     configure_logging()
     # Delegate to the service layer so the entry point stays small and
     # testable.
-    result = evaluate_maturity(EvaluationRequest(repository=sys.argv[1]))
+    request = EvaluationRequest(repository=sys.argv[1])
+    result = asyncio.run(evaluate_maturity(request))
     print(result.maturity_placeholder)
 
 

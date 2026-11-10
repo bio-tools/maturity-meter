@@ -2,9 +2,13 @@
 
 The library, CLI, and web API all describe what to evaluate with
 :class:`EvaluationRequest`, so validation rules live in one place.
+:class:`IngestedData` is the raw external metadata collected for a request and
+handed to the maturity components.
 """
 
 import re
+from dataclasses import dataclass, field
+from typing import Any
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -144,3 +148,32 @@ class EvaluationRequest(BaseModel):
     def repo(self) -> str:
         """Repository name."""
         return self.repo_path.rsplit("/", 1)[1]
+
+
+@dataclass(frozen=True)
+class IngestedData:
+    """Raw external metadata collected for one :class:`EvaluationRequest`.
+
+    Optional sources are ``None`` (or map a DOI to ``None``) when they were not
+    requested or could not be fetched, so components can tell "not assessed"
+    apart from a poor score.
+
+    Parameters
+    ----------
+    request : EvaluationRequest
+        The request the data was collected for.
+    repository : dict[str, Any]
+        Raw GitHub or GitLab ingestor output.
+    biotools : dict[str, Any] | None
+        Raw bio.tools entry, if a bio.tools ID was given and found.
+    europe_pmc : dict[str, dict[str, Any] | None]
+        Europe PMC record per DOI.
+    openalex : dict[str, dict[str, Any] | None]
+        OpenAlex work per DOI.
+    """
+
+    request: EvaluationRequest
+    repository: dict[str, Any]
+    biotools: dict[str, Any] | None = None
+    europe_pmc: dict[str, dict[str, Any] | None] = field(default_factory=dict)
+    openalex: dict[str, dict[str, Any] | None] = field(default_factory=dict)

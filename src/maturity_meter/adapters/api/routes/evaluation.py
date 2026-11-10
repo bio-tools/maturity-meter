@@ -13,7 +13,7 @@ router = APIRouter(tags=["evaluation"])
 
 
 @router.post("/evaluate", response_model=MaturityResult)
-def evaluate(request: EvaluationRequest) -> MaturityResult:
+async def evaluate(request: EvaluationRequest) -> MaturityResult:
     """Evaluate maturity through the service layer.
 
     Parameters
@@ -28,4 +28,4 @@ def evaluate(request: EvaluationRequest) -> MaturityResult:
     """
     # The service result is already the public response shape, so return it
     # directly instead of duplicating it in a separate schema.
-    return evaluate_maturity(request)
+    return await evaluate_maturity(request)

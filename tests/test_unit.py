@@ -4,15 +4,6 @@ import logging
 
 from maturity_meter.config import Settings
 from maturity_meter.logging_config import configure_logging
-from maturity_meter.models import EvaluationRequest
-from maturity_meter.services.processing import evaluate_maturity
-
-
-def test_evaluate_maturity_returns_structured_result():
-    """Ensure the service returns a structured maturity result."""
-    result = evaluate_maturity(EvaluationRequest(repository="https://github.com/o/r"))
-
-    assert result.maturity_placeholder == 1.0
 
 
 def test_runtime_settings_read_project_environment(monkeypatch):

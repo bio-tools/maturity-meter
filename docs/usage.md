@@ -30,11 +30,12 @@ Only `repository` is required.
 ## Library
 
 ```python
+import asyncio
+
 from maturity_meter import EvaluationRequest, evaluate_maturity
 
-result = evaluate_maturity(
-    EvaluationRequest(repository="https://github.com/owner/repo")
-)
+request = EvaluationRequest(repository="https://github.com/owner/repo")
+result = asyncio.run(evaluate_maturity(request))
 ```
 
 ## Functions
