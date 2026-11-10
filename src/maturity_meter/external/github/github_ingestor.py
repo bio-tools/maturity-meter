@@ -3,6 +3,7 @@ Async client for the GitHub API.
 Fetches a repository and returns the raw JSON (single call).
 """
 
+import asyncio
 import logging
 from typing import Any
 
@@ -66,11 +67,20 @@ class GitHubIngestor(Ingestor):
         dict
             Raw JSON for the repository from GET /repos/{owner}/{repo}.
         """
-        repo_data = await self.fetch_repo()
-        latest_release_data = await self.fetch_latest_release()
-        github_pages = await self.fetch_github_pages()
-        readme = await self.fetch_readme()
-        languages = await self.fetch_languages()
+        # The five endpoints are independent, so request them concurrently.
+        (
+            repo_data,
+            latest_release_data,
+            github_pages,
+            readme,
+            languages,
+        ) = await asyncio.gather(
+            self.fetch_repo(),
+            self.fetch_latest_release(),
+            self.fetch_github_pages(),
+            self.fetch_readme(),
+            self.fetch_languages(),
+        )
 
         result: dict[str, Any] = {
             "repo": repo_data,
