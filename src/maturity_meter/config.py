@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     github_token : pydantic.SecretStr | None
         Optional GitHub personal access token. Requests are unauthenticated
         (and heavily rate limited) when omitted.
+    gitlab_token : pydantic.SecretStr | None
+        Optional GitLab personal access token. Public projects can be read
+        without one.
     """
 
     model_config = SettingsConfigDict(
@@ -48,6 +51,7 @@ class Settings(BaseSettings):
     server_reload: bool = False
     public_base_url: AnyHttpUrl | None = None
     github_token: SecretStr | None = None
+    gitlab_token: SecretStr | None = None
 
     @field_validator("server_host")
     @classmethod
