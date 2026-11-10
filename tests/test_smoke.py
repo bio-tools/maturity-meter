@@ -26,7 +26,7 @@ def test_main_is_callable():
 
 def test_library_api_evaluates_maturity(monkeypatch):
     """Ensure reusable service logic is available from the package API."""
-    from maturity_meter.models import IngestedData
+    from maturity_meter.models import Evaluation, IngestedData
     from maturity_meter.services import processing
 
     async def fake_ingest(request):
@@ -36,7 +36,7 @@ def test_library_api_evaluates_maturity(monkeypatch):
     request = EvaluationRequest(repository="https://github.com/o/r")
     result = asyncio.run(evaluate_maturity(request))
 
-    assert result.maturity_placeholder == {"component1": 1.0, "resqui": None}
+    assert result.maturity_placeholder == Evaluation()
 
 
 def test_runtime_settings_import():

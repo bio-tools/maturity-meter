@@ -273,3 +273,22 @@ class IngestedData:
     quality_checks: dict[str, Any] | None = None
     europe_pmc: dict[str, dict[str, Any] | None] = field(default_factory=dict)
     openalex: dict[str, dict[str, Any] | None] = field(default_factory=dict)
+
+
+class Evaluation(BaseModel):
+    """Maturity score per dimension for one evaluation.
+
+    Each score is a float, or ``None`` when the dimension was not assessed.
+    Compatibility, FAIRness, maintainability, security and sustainability
+    follow the EVERSE quality dimensions
+    (https://w3id.org/everse/i/dimensions); scientific impact is our own.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    compatibility: float | None = None
+    fairness: float | None = None
+    maintainability: float | None = None
+    scientific_impact: float | None = None
+    security: float | None = None
+    sustainability: float | None = None
