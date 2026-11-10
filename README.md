@@ -38,6 +38,10 @@ poetry install
 poetry run maturity-meter evaluate https://github.com/owner/repo
 ```
 
+The result is printed as JSON; add `-o result.json` to save it. Use
+`--save-data data.json` to save the fetched data, and `--data data.json` to
+re-score it later without fetching anything again.
+
 ## Functions
 
 <details>
