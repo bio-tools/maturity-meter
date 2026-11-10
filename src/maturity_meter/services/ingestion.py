@@ -16,6 +16,9 @@ import httpx
 from maturity_meter.config import get_settings
 from maturity_meter.external import (
     BiotoolsIngestor,
+    CodeMetricsError,
+    CodeMetricsIngestor,
+    EDAMIngestor,
     EuropePMCIngestor,
     EuropePMCNotFoundError,
     GitHubIngestor,
@@ -24,6 +27,8 @@ from maturity_meter.external import (
     OpenEBenchIngestor,
     ResquiError,
     ResquiIngestor,
+    RSEcIngestor,
+    formats_in_biotools,
 )
 from maturity_meter.external.protocols import Ingestor
 from maturity_meter.models import EvaluationRequest, IngestedData
@@ -120,7 +125,12 @@ async def _optional[T](source: str, awaitable: Awaitable[T]) -> T | None:
     """Await an optional source, returning None if it is unavailable."""
     try:
         return await awaitable
-    except (httpx.HTTPError, EuropePMCNotFoundError, ResquiError) as error:
+    except (
+        httpx.HTTPError,
+        EuropePMCNotFoundError,
+        ResquiError,
+        CodeMetricsError,
+    ) as error:
         logger.warning(f"Skipping {source}: {error}")
         return None
 
@@ -203,6 +213,22 @@ async def ingest(request: EvaluationRequest) -> IngestedData:
             else _none()
         ),
     )
+    # RSEc is looked up by bio.tools ID, so it needs one.
+    rsec = _supplied_or(
+        supplied.rsec,
+        lambda: (
+            _optional("RSEc", RSEcIngestor(biotools_id).fetch())
+            if biotools_id
+            else _none()
+        ),
+    )
+    # Code metrics shallow-clone the repository, so they take a while.
+    code_metrics = _supplied_or(
+        supplied.code_metrics,
+        lambda: _optional(
+            "code metrics", CodeMetricsIngestor(request.repository).fetch()
+        ),
+    )
     # Per-DOI sources: only DOIs without a supplied record are fetched.
     missing_pmc = [doi for doi in request.dois if doi not in supplied.europe_pmc]
     europe_pmc = [
@@ -214,32 +240,54 @@ async def ingest(request: EvaluationRequest) -> IngestedData:
     openalex = OpenAlexIngestor(missing_oa).fetch() if missing_oa else _none()
 
     try:
+        # The repository is gathered on its own so its type stays exact; the
+        # optional sources still run concurrently with it.
+        repository, optional_sources = await asyncio.gather(
+            repository_task,
+            asyncio.gather(
+                biotools,
+                openebench,
+                openalex,
+                quality,
+                rsec,
+                code_metrics,
+                *europe_pmc,
+            ),
+        )
         (
-            repository,
             biotools_data,
             openebench_data,
             openalex_data,
             quality_data,
+            rsec_data,
+            code_metrics_data,
             *europe_pmc_data,
-        ) = await asyncio.gather(
-            repository_task,
-            biotools,
-            openebench,
-            openalex,
-            quality,
-            *europe_pmc,
-        )
+        ) = optional_sources
     except (httpx.HTTPError, ValueError) as error:
         raise _repository_error(request, error) from error
+
+    # EDAM terms describe the bio.tools entry's formats, so they need it first.
+    # As with DOIs, only formats without a supplied term are looked up.
+    missing_edam = [
+        iri for iri in formats_in_biotools(biotools_data) if iri not in supplied.edam
+    ]
+    edam_data = (
+        await _optional("EDAM", EDAMIngestor(missing_edam).fetch())
+        if missing_edam
+        else None
+    )
     return IngestedData(
         request=request,
         repository=repository,
         biotools=biotools_data,
         openebench=openebench_data,
         quality_checks=quality_data,
+        rsec=rsec_data,
+        code_metrics=code_metrics_data,
         europe_pmc={
             **dict(zip(missing_pmc, europe_pmc_data, strict=True)),
             **supplied.europe_pmc,
         },
         openalex={**(openalex_data or {}), **supplied.openalex},
+        edam={**(edam_data or {}), **supplied.edam},
     )
