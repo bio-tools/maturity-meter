@@ -8,8 +8,7 @@ import logging
 from typing import Any
 from urllib.parse import quote
 
-import httpx
-
+from maturity_meter.external.http import get_json, get_json_optional, get_pages
 from maturity_meter.external.protocols import Ingestor
 
 from .gitlab_auth import get_gitlab_headers
@@ -48,41 +47,57 @@ class GitLabIngestor(Ingestor):
             f"{self.api_base}/projects/{quote(f'{owner}/{repo}', safe='')}"
         )
 
-    async def _get(
-        self,
-        url: str,
-        *,
-        params: dict[str, Any] | None = None,
-    ) -> Any:
-        try:
-            async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
-                resp = await client.get(
-                    url, headers=get_gitlab_headers(self.host), params=params
-                )
-                resp.raise_for_status()
-                if resp.headers.get("content-type", "").startswith("application/json"):
-                    return resp.json()
-                return resp.text
-        except httpx.RequestError as e:
-            logger.error(f"Network error while fetching {url}: {e}")
-            raise
-        except httpx.HTTPStatusError as e:
-            logger.warning(f"HTTP error {e.response.status_code} from {url}")
-            raise
+    async def _get(self, url: str, params: dict[str, Any] | None = None) -> Any:
+        # Redirects are followed for e.g. the latest-release permalink.
+        return await get_json(
+            url,
+            params=params,
+            headers=get_gitlab_headers(self.host),
+            follow_redirects=True,
+        )
 
     async def _get_optional(
-        self, url: str, what: str, params: dict[str, Any] | None = None
+        self,
+        url: str,
+        what: str,
+        params: dict[str, Any] | None = None,
+        *,
+        missing: tuple[int, ...] = (403, 404),
     ) -> Any | None:
-        """GET ``url``, returning None when missing or the feature is disabled."""
-        try:
-            logger.debug(f"Fetching {what}: {url}")
-            return await self._get(url, params=params)
-        except httpx.HTTPStatusError as e:
-            # GitLab answers 403 when a project feature (e.g. releases) is off.
-            if e.response.status_code in (403, 404):
-                logger.info(f"No {what} for {self.owner}/{self.repo}")
-                return None
-            raise
+        """GET ``url``, or None when missing or the feature is disabled.
+
+        GitLab answers 403 when a project feature (e.g. releases) is off.
+        """
+        data = await get_json_optional(
+            url,
+            params=params,
+            headers=get_gitlab_headers(self.host),
+            follow_redirects=True,
+            missing=missing,
+        )
+        if data is None:
+            logger.info(f"No {what} for {self.owner}/{self.repo}")
+        return data
+
+    async def _get_pages(
+        self,
+        url: str,
+        what: str,
+        params: dict[str, Any] | None = None,
+        max_pages: int = MAX_PAGES,
+    ) -> list[Any] | None:
+        """GET up to ``max_pages`` pages of a list endpoint, or None."""
+        data = await get_pages(
+            url,
+            params=params,
+            per_page=PER_PAGE,
+            max_pages=max_pages,
+            headers=get_gitlab_headers(self.host),
+            missing=(403, 404),
+        )
+        if data is None:
+            logger.info(f"No {what} for {self.owner}/{self.repo}")
+        return data
 
     async def fetch(self) -> dict[str, Any]:
         """
@@ -129,26 +144,6 @@ class GitLabIngestor(Ingestor):
             "open_issues": open_issues,
         }
         return result
-
-    async def _get_pages(
-        self,
-        url: str,
-        what: str,
-        params: dict[str, Any] | None = None,
-        max_pages: int = MAX_PAGES,
-    ) -> list[Any] | None:
-        """GET up to ``max_pages`` pages of a list endpoint, or None."""
-        items: list[Any] = []
-        for page in range(1, max_pages + 1):
-            batch = await self._get_optional(
-                url, what, {**(params or {}), "per_page": PER_PAGE, "page": page}
-            )
-            if batch is None:
-                return items or None
-            items.extend(batch)
-            if len(batch) < PER_PAGE:
-                break
-        return items
 
     async def fetch_files(self, branch: str) -> list[str] | None:
         """
@@ -318,14 +313,11 @@ class GitLabIngestor(Ingestor):
         # readme_url looks like https://<host>/<path>/-/blob/<branch>/<file>
         file_path = readme_url.split(f"/-/blob/{branch}/", 1)[-1]
         url = f"{self.project_url}/repository/files/{quote(file_path, safe='')}/raw"
-        try:
-            logger.debug(f"Fetching README: {url}")
-            content: str = await self._get(url, params={"ref": branch})
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                logger.info(f"No README found for {self.owner}/{self.repo}")
-                return None
-            raise
+        content: str | None = await self._get_optional(
+            url, "README", {"ref": branch}, missing=(404,)
+        )
+        if content is None:
+            return None
         logger.info(f"Ingested README for {self.owner}/{self.repo} successfully")
         return content
 

@@ -10,12 +10,21 @@ from typing import Any
 import httpx
 
 from maturity_meter.config import get_settings
+from maturity_meter.external.http import get_json, get_json_optional
 from maturity_meter.external.protocols import Ingestor
 
 logger = logging.getLogger(__name__)
 
 OPENALEX_API_BASE = "https://api.openalex.org"
 HTTP_TIMEOUT_SECONDS = 30
+# OpenAlex accepts up to 50 values in one OR filter (``doi:a|b|...``).
+BATCH_SIZE = 50
+_DOI_URL_PREFIX = "https://doi.org/"
+
+
+def _batchable(doi: str) -> bool:
+    """Whether a DOI can go in an OR filter (``|`` and ``,`` are syntax)."""
+    return "|" not in doi and "," not in doi
 
 
 class OpenAlexIngestor(Ingestor):
@@ -36,40 +45,73 @@ class OpenAlexIngestor(Ingestor):
         api_key = get_settings().openalex_api_key
         return {"api_key": api_key.get_secret_value()} if api_key else {}
 
-    async def _fetch_doi(
-        self, client: httpx.AsyncClient, doi: str
-    ) -> tuple[str, dict[str, Any] | None]:
-        """Fetch one work, returning None if it is missing or the call fails."""
-        url = f"{OPENALEX_API_BASE}/works/doi:{doi}"
+    async def _fetch_batch(self, dois: list[str]) -> dict[str, dict[str, Any] | None]:
+        """Fetch up to BATCH_SIZE works in one request; failures map to None."""
+        found: dict[str, dict[str, Any] | None] = {doi: None for doi in dois}
+        params = {
+            **self._params(),
+            "filter": "doi:" + "|".join(dois),
+            "per-page": str(BATCH_SIZE),
+        }
         try:
-            logger.debug(f"Fetching OpenAlex work: {url}")
-            resp = await client.get(url, params=self._params())
-            resp.raise_for_status()
-            data: dict[str, Any] = resp.json()
-            return doi, data
-        except httpx.HTTPStatusError as e:
-            # One bad DOI should not fail the whole batch.
-            logger.warning(
-                f"HTTP error {e.response.status_code} from OpenAlex for DOI {doi}"
+            data = await get_json(
+                f"{OPENALEX_API_BASE}/works",
+                params=params,
+                timeout=HTTP_TIMEOUT_SECONDS,
             )
-            return doi, None
-        except httpx.RequestError as e:
-            logger.warning(f"Network error fetching OpenAlex work for DOI {doi}: {e}")
-            return doi, None
+        except httpx.HTTPError as e:
+            # One failing batch should not fail the whole ingestion.
+            logger.warning(f"OpenAlex batch of {len(dois)} DOIs failed: {e}")
+            return found
+        # Works carry their DOI as a lower-cased doi.org URL; DOIs are
+        # case-insensitive, so match on the lower-cased bare DOI.
+        by_doi = {doi.lower(): doi for doi in dois}
+        for work in data.get("results", []):
+            key = str(work.get("doi") or "").removeprefix(_DOI_URL_PREFIX).lower()
+            if key in by_doi:
+                found[by_doi[key]] = work
+        return found
+
+    async def _fetch_single(self, doi: str) -> tuple[str, dict[str, Any] | None]:
+        """Fetch one work by DOI; missing or failing works map to None."""
+        try:
+            work = await get_json_optional(
+                f"{OPENALEX_API_BASE}/works/doi:{doi}",
+                params=self._params(),
+                timeout=HTTP_TIMEOUT_SECONDS,
+            )
+        except httpx.HTTPError as e:
+            logger.warning(f"OpenAlex lookup of DOI {doi} failed: {e}")
+            work = None
+        return doi, work
 
     async def fetch(self) -> dict[str, Any]:
         """
-        Fetch the OpenAlex work for every DOI concurrently.
+        Fetch the OpenAlex works for all DOIs, in batches of up to BATCH_SIZE.
 
         Returns
         -------
         dict
             Mapping of DOI to the raw OpenAlex work JSON, or None when the work
-            could not be fetched.
+            could not be found or fetched.
         """
-        async with httpx.AsyncClient(timeout=HTTP_TIMEOUT_SECONDS) as client:
-            results = await asyncio.gather(
-                *(self._fetch_doi(client, doi) for doi in self.dois)
-            )
-        logger.info(f"Ingested {len(results)} OpenAlex works")
-        return dict(results)
+        batchable = [doi for doi in self.dois if _batchable(doi)]
+        batches = [
+            batchable[i : i + BATCH_SIZE] for i in range(0, len(batchable), BATCH_SIZE)
+        ]
+        singles = [doi for doi in self.dois if not _batchable(doi)]
+        batch_results, single_results = await asyncio.gather(
+            asyncio.gather(*(self._fetch_batch(batch) for batch in batches)),
+            asyncio.gather(*(self._fetch_single(doi) for doi in singles)),
+        )
+        works: dict[str, Any] = {}
+        for result in batch_results:
+            works.update(result)
+        works.update(dict(single_results))
+        # Keep the caller's order.
+        ordered = {doi: works.get(doi) for doi in self.dois}
+        logger.info(
+            f"Ingested {sum(w is not None for w in ordered.values())} of "
+            f"{len(ordered)} OpenAlex works"
+        )
+        return ordered

@@ -9,8 +9,7 @@ import logging
 from typing import Any
 from urllib.parse import quote
 
-import httpx
-
+from maturity_meter.external.http import get_json_optional
 from maturity_meter.external.protocols import Ingestor
 
 logger = logging.getLogger(__name__)
@@ -60,28 +59,24 @@ class EDAMIngestor(Ingestor):
         self.iris = iris
 
     async def _fetch_term(
-        self, client: httpx.AsyncClient, limit: asyncio.Semaphore, iri: str
+        self, limit: asyncio.Semaphore, iri: str
     ) -> tuple[str, dict[str, Any] | None]:
         """Fetch one term, returning None if OLS4 does not know it."""
         if iri in _cache:
             return iri, _cache[iri]
         # OLS4 expects the IRI double URL-encoded in the path.
         url = f"{OLS4_TERMS_URL}/{quote(quote(iri, safe=''), safe='')}"
-        try:
-            async with limit:
-                resp = await client.get(url)
-            resp.raise_for_status()
-            data = resp.json()
-            term: dict[str, Any] | None = {
+        async with limit:
+            data = await get_json_optional(url, timeout=HTTP_TIMEOUT_SECONDS)
+        if data is None:
+            logger.info(f"Unknown EDAM term {iri}")
+            term = None
+        else:
+            term = {
                 "label": data.get("label"),
                 "has_children": data.get("has_children"),
                 "is_obsolete": data.get("is_obsolete"),
             }
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code != 404:
-                raise
-            logger.info(f"Unknown EDAM term {iri}")
-            term = None
         _cache[iri] = term
         return iri, term
 
@@ -102,9 +97,8 @@ class EDAMIngestor(Ingestor):
             If OLS4 fails for a reason other than an unknown term.
         """
         limit = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
-        async with httpx.AsyncClient(timeout=HTTP_TIMEOUT_SECONDS) as client:
-            results = await asyncio.gather(
-                *(self._fetch_term(client, limit, iri) for iri in self.iris)
-            )
+        results = await asyncio.gather(
+            *(self._fetch_term(limit, iri) for iri in self.iris)
+        )
         logger.info(f"Looked up {len(results)} EDAM terms")
         return dict(results)

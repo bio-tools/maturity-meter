@@ -30,6 +30,7 @@ from maturity_meter.external import (
     RSEcIngestor,
     formats_in_biotools,
 )
+from maturity_meter.external.http import shared_client
 from maturity_meter.external.protocols import Ingestor
 from maturity_meter.models import EvaluationRequest, IngestedData
 
@@ -158,6 +159,8 @@ def _supplied_or[T](
 async def ingest(request: EvaluationRequest) -> IngestedData:
     """Fetch all external metadata for ``request`` concurrently.
 
+    All requests share one connection pool for the whole evaluation.
+
     Parameters
     ----------
     request : EvaluationRequest
@@ -174,6 +177,11 @@ async def ingest(request: EvaluationRequest) -> IngestedData:
         If the repository cannot be fetched. Failures of optional sources are
         logged and reported as ``None`` instead.
     """
+    async with shared_client():
+        return await _ingest(request)
+
+
+async def _ingest(request: EvaluationRequest) -> IngestedData:
     logger.debug(f"Ingesting metadata for {request.repository}")
     # Supplied data is used as-is; everything missing is fetched.
     supplied = request.data

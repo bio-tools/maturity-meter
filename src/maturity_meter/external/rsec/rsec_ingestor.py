@@ -7,9 +7,8 @@ packaged or deployed (Bioconda, Debian Med, BioContainers, Galaxy, ...).
 import logging
 from typing import Any
 
-import httpx
-
 from maturity_meter.external.github.github_auth import get_github_headers
+from maturity_meter.external.http import get_json
 from maturity_meter.external.protocols import Ingestor
 
 logger = logging.getLogger(__name__)
@@ -51,17 +50,9 @@ class RSEcIngestor(Ingestor):
             With status 404 if RSEc has no folder for the tool.
         """
         url = f"{RSEC_CONTENTS_URL}/{self.biotools_id}"
-        try:
-            async with httpx.AsyncClient(timeout=HTTP_TIMEOUT_SECONDS) as client:
-                resp = await client.get(url, headers=get_github_headers())
-                resp.raise_for_status()
-                entries = resp.json()
-        except httpx.RequestError as e:
-            logger.error(f"Network error while fetching {url}: {e}")
-            raise
-        except httpx.HTTPStatusError as e:
-            logger.warning(f"HTTP error {e.response.status_code} from {url}")
-            raise
+        entries = await get_json(
+            url, headers=get_github_headers(), timeout=HTTP_TIMEOUT_SECONDS
+        )
         files = [e["name"] for e in entries if e.get("type") == "file"]
         logger.info(f"Ingested {len(files)} RSEc files for {self.biotools_id}")
         return {"files": files}
