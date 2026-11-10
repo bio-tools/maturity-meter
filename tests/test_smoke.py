@@ -36,7 +36,10 @@ def test_library_api_evaluates_maturity(monkeypatch):
     request = EvaluationRequest(repository="https://github.com/o/r")
     result = asyncio.run(evaluate_maturity(request))
 
-    assert result.maturity == Evaluation()
+    assert all(
+        getattr(result.maturity, dimension) == []
+        for dimension in Evaluation.model_fields
+    )
 
 
 def test_runtime_settings_import():
