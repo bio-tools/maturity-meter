@@ -40,16 +40,12 @@ def repository_ingestor(request: EvaluationRequest) -> Ingestor:
     Ingestor
         GitHub or GitLab ingestor.
 
-    Raises
-    ------
-    ValueError
-        If the host has no ingestor.
     """
     if request.host == "github.com":
         return GitHubIngestor(request.owner, request.repo)
-    if request.host == "gitlab.com":
-        return GitLabIngestor(request.owner, request.repo)
-    raise ValueError(f"No ingestor for repository host {request.host!r}")
+    # Any other host is assumed to be a GitLab instance (gitlab.com or
+    # self-hosted).
+    return GitLabIngestor(request.owner, request.repo, request.host)
 
 
 async def _optional[T](source: str, awaitable: Awaitable[T]) -> T | None:

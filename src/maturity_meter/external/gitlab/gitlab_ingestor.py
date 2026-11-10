@@ -26,14 +26,13 @@ class GitLabIngestor(Ingestor):
         Project namespace; may contain subgroups (e.g. ``group/subgroup``).
     repo : str
         Project name.
-    api_base : str, default="https://gitlab.com/api/v4"
-        Base URL of the GitLab API.
+    host : str, default="gitlab.com"
+        GitLab instance hosting the project (gitlab.com or self-hosted).
     """
 
-    def __init__(
-        self, owner: str, repo: str, api_base: str = "https://gitlab.com/api/v4"
-    ):
-        self.api_base = api_base
+    def __init__(self, owner: str, repo: str, host: str = "gitlab.com"):
+        self.host = host
+        self.api_base = f"https://{host}/api/v4"
 
         self.owner = owner
         self.repo = repo
@@ -51,7 +50,7 @@ class GitLabIngestor(Ingestor):
         try:
             async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
                 resp = await client.get(
-                    url, headers=get_gitlab_headers(), params=params
+                    url, headers=get_gitlab_headers(self.host), params=params
                 )
                 resp.raise_for_status()
                 if resp.headers.get("content-type", "").startswith("application/json"):
@@ -160,7 +159,7 @@ class GitLabIngestor(Ingestor):
         if not readme_url or not branch:
             logger.info(f"No README found for {self.owner}/{self.repo}")
             return None
-        # readme_url looks like https://gitlab.com/<path>/-/blob/<branch>/<file>
+        # readme_url looks like https://<host>/<path>/-/blob/<branch>/<file>
         file_path = readme_url.split(f"/-/blob/{branch}/", 1)[-1]
         url = f"{self.project_url}/repository/files/{quote(file_path, safe='')}/raw"
         try:

@@ -35,7 +35,7 @@ def run(request: EvaluationRequest) -> str:
 
 def command(
     repository: Annotated[
-        str, typer.Argument(help="URL of a GitHub or GitLab repository.")
+        str, typer.Argument(help="URL of a GitHub or GitLab (any instance) repository.")
     ],
     doi: Annotated[
         list[str] | None,

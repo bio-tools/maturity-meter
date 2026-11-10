@@ -6,6 +6,7 @@ The library, CLI, and web API all describe what to evaluate with
 handed to the maturity components.
 """
 
+import ipaddress
 import re
 from dataclasses import dataclass, field
 from typing import Any
@@ -13,8 +14,13 @@ from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-SUPPORTED_HOSTS = ("github.com", "gitlab.com")
+# Hosts that are not a public forge: the server fetches whatever host it is
+# given, so refuse names and addresses that point at internal networks.
+_INTERNAL_SUFFIXES = (".local", ".localhost", ".internal", ".lan", ".home.arpa")
 
+_HOSTNAME_PATTERN = re.compile(
+    r"^[a-z0-9]([a-z0-9\-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9\-]*[a-z0-9])?)+$"
+)
 _DOI_PATTERN = re.compile(r"^10\.\d{4,9}/\S+$")
 _DOI_PREFIX_PATTERN = re.compile(
     r"^(?:https?://(?:dx\.)?doi\.org/|doi:)", re.IGNORECASE
@@ -28,7 +34,9 @@ class EvaluationRequest(BaseModel):
     Parameters
     ----------
     repository : str
-        URL of a GitHub or GitLab repository. Normalized to
+        URL of a GitHub repository or of a repository on any GitLab instance
+        (``github.com`` is GitHub; every other host is treated as GitLab).
+        Normalized to
         ``https://<host>/<path>`` without a ``.git`` suffix or trailing slash.
     dois : list[str]
         Optional DOIs of publications about the software. Normalized to the
@@ -61,14 +69,27 @@ class EvaluationRequest(BaseModel):
         Raises
         ------
         ValueError
-            If the host is unsupported or the path is not ``owner/repo``.
+            If the host is not a public hostname or the path is not
+            ``owner/repo``.
         """
         parsed = urlparse(value.strip())
         host = (parsed.hostname or "").lower().removeprefix("www.")
-        if parsed.scheme not in ("http", "https") or host not in SUPPORTED_HOSTS:
-            raise ValueError(
-                f"Repository must be an http(s) URL on {' or '.join(SUPPORTED_HOSTS)}"
-            )
+        if parsed.scheme not in ("http", "https") or not host:
+            raise ValueError("Repository must be an http(s) URL")
+        if parsed.username or parsed.password or parsed.port:
+            raise ValueError("Repository URL must not contain credentials or a port")
+        try:
+            ipaddress.ip_address(host)
+            is_ip = True
+        except ValueError:
+            is_ip = False
+        if (
+            is_ip
+            or "." not in host
+            or host.endswith(_INTERNAL_SUFFIXES)
+            or not _HOSTNAME_PATTERN.match(host)
+        ):
+            raise ValueError("Repository host must be a public hostname")
         path = parsed.path.strip("/").removesuffix(".git")
         if len(path.split("/")) < 2 or not all(path.split("/")):
             raise ValueError("Repository URL must include an owner and a repository")
