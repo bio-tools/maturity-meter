@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class MaturityResult:
     """Result returned by the evaluation service."""
 
-    maturity_placeholder: Any
+    maturity: Any
 
 
 async def evaluate_maturity(request: EvaluationRequest) -> MaturityResult:
@@ -37,4 +37,4 @@ async def evaluate_maturity(request: EvaluationRequest) -> MaturityResult:
     """
     logger.debug("Evaluating maturity of %s", request.repository)
     data = await ingest(request)
-    return MaturityResult(maturity_placeholder=combine(data))
+    return MaturityResult(maturity=combine(data))

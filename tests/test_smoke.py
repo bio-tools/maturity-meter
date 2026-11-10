@@ -36,7 +36,7 @@ def test_library_api_evaluates_maturity(monkeypatch):
     request = EvaluationRequest(repository="https://github.com/o/r")
     result = asyncio.run(evaluate_maturity(request))
 
-    assert result.maturity_placeholder == Evaluation()
+    assert result.maturity == Evaluation()
 
 
 def test_runtime_settings_import():
