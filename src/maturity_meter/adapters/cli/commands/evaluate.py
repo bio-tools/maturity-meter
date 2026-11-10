@@ -18,22 +18,27 @@ from maturity_meter.services.ingestion import RepositoryFetchError
 from maturity_meter.services.processing import evaluate_maturity
 
 
-def run(request: EvaluationRequest) -> str:
+def run(request: EvaluationRequest, output: Path | None = None) -> str:
     """Run the command logic without printing to the terminal.
 
     Parameters
     ----------
     request : EvaluationRequest
         Repository and optional publication/bio.tools identifiers.
+    output : pathlib.Path, optional
+        File to also save the result to, as JSON.
 
     Returns
     -------
     str
-        Evaluated maturity as text.
+        The result as JSON.
     """
     # Keeping command logic in a pure helper makes it straightforward to test
     # without capturing terminal output.
-    return str(asyncio.run(evaluate_maturity(request)).maturity)
+    result = asyncio.run(evaluate_maturity(request))
+    if output is not None:
+        result.save(output)
+    return result.to_json()
 
 
 def command(
@@ -61,8 +66,17 @@ def command(
             ),
         ),
     ] = None,
+    output: Annotated[
+        Path | None,
+        typer.Option(
+            "--output",
+            "-o",
+            dir_okay=False,
+            help="Also save the result to this file as JSON.",
+        ),
+    ] = None,
 ) -> None:
-    """Evaluate maturity of a repository and print the result."""
+    """Evaluate maturity of a repository and print the result as JSON."""
     try:
         request = EvaluationRequest(
             repository=repository,
@@ -73,7 +87,7 @@ def command(
     except (ValidationError, json.JSONDecodeError) as error:
         raise typer.BadParameter(str(error)) from error
     try:
-        typer.echo(run(request))
+        typer.echo(run(request, output))
     except RepositoryFetchError as error:
         typer.echo(f"Error: {error}", err=True)
         raise typer.Exit(code=1) from error
