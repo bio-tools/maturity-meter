@@ -10,6 +10,7 @@ from typing import Any
 
 from maturity_meter.components import combine
 from maturity_meter.models import EvaluationRequest
+from maturity_meter.services.ingestion import ingest
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ class MaturityResult:
     maturity_placeholder: Any
 
 
-def evaluate_maturity(request: EvaluationRequest) -> MaturityResult:
+async def evaluate_maturity(request: EvaluationRequest) -> MaturityResult:
     """Evaluate the maturity of the software described by ``request``.
 
     Parameters
@@ -34,7 +35,6 @@ def evaluate_maturity(request: EvaluationRequest) -> MaturityResult:
     MaturityResult
         Evaluated maturity.
     """
-    # This starter transformation is intentionally simple. Replace the body of
-    # this function with the real project logic while keeping the typed result.
     logger.debug("Evaluating maturity of %s", request.repository)
-    return MaturityResult(maturity_placeholder=combine())
+    data = await ingest(request)
+    return MaturityResult(maturity_placeholder=combine(data))

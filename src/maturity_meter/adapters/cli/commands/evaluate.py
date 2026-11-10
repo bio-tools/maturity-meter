@@ -5,12 +5,14 @@ It delegates project logic to the service layer so command behavior is easy to
 test.
 """
 
+import asyncio
 from typing import Annotated
 
 import typer
 from pydantic import ValidationError
 
 from maturity_meter.models import EvaluationRequest
+from maturity_meter.services.ingestion import RepositoryFetchError
 from maturity_meter.services.processing import evaluate_maturity
 
 
@@ -29,12 +31,12 @@ def run(request: EvaluationRequest) -> str:
     """
     # Keeping command logic in a pure helper makes it straightforward to test
     # without capturing terminal output.
-    return str(evaluate_maturity(request).maturity_placeholder)
+    return str(asyncio.run(evaluate_maturity(request)).maturity_placeholder)
 
 
 def command(
     repository: Annotated[
-        str, typer.Argument(help="URL of a GitHub or GitLab repository.")
+        str, typer.Argument(help="URL of a GitHub or GitLab (any instance) repository.")
     ],
     doi: Annotated[
         list[str] | None,
@@ -52,4 +54,8 @@ def command(
         )
     except ValidationError as error:
         raise typer.BadParameter(str(error)) from error
-    typer.echo(run(request))
+    try:
+        typer.echo(run(request))
+    except RepositoryFetchError as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(code=1) from error
