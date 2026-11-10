@@ -7,6 +7,7 @@ from .europe_pmc import EuropePMCIngestor, EuropePMCNotFoundError
 from .github import GitHubIngestor
 from .gitlab import GitLabIngestor
 from .openalex import OpenAlexIngestor
+from .openebench import OpenEBenchIngestor
 from .resqui import ResquiError, ResquiIngestor
 
 __all__ = [
@@ -15,6 +16,7 @@ __all__ = [
     "GitHubIngestor",
     "GitLabIngestor",
     "OpenAlexIngestor",
+    "OpenEBenchIngestor",
     "ResquiError",
     "ResquiIngestor",
     "BiotoolsIngestor",
