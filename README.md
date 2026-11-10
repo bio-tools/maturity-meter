@@ -35,7 +35,7 @@ poetry install
 ## Usage
 
 ```bash
-poetry run maturity-meter evaluate
+poetry run maturity-meter evaluate https://github.com/owner/repo
 ```
 
 ## Functions

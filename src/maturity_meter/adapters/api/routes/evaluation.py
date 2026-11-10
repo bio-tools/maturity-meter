@@ -6,14 +6,20 @@ shape API payloads without duplicating domain logic.
 
 from fastapi import APIRouter
 
+from maturity_meter.models import EvaluationRequest
 from maturity_meter.services.processing import MaturityResult, evaluate_maturity
 
 router = APIRouter(tags=["evaluation"])
 
 
-@router.get("/evaluate", response_model=MaturityResult)
-def evaluate() -> MaturityResult:
+@router.post("/evaluate", response_model=MaturityResult)
+def evaluate(request: EvaluationRequest) -> MaturityResult:
     """Evaluate maturity through the service layer.
+
+    Parameters
+    ----------
+    request : EvaluationRequest
+        Repository and optional publication/bio.tools identifiers.
 
     Returns
     -------
@@ -22,4 +28,4 @@ def evaluate() -> MaturityResult:
     """
     # The service result is already the public response shape, so return it
     # directly instead of duplicating it in a separate schema.
-    return evaluate_maturity()
+    return evaluate_maturity(request)

@@ -7,6 +7,7 @@ Implementation details live in named modules and subpackages such as
 
 from importlib.metadata import PackageNotFoundError, version
 
+from maturity_meter.models import EvaluationRequest
 from maturity_meter.services.processing import (
     MaturityResult,
     evaluate_maturity,
@@ -22,6 +23,7 @@ except PackageNotFoundError:
 # Keep the public import surface explicit so downstream users can see which
 # names are intended to be stable.
 __all__ = [
+    "EvaluationRequest",
     "MaturityResult",
     "__version__",
     "evaluate_maturity",

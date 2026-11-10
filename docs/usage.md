@@ -9,7 +9,8 @@ poetry install
 ## Command line
 
 ```bash
-poetry run maturity-meter evaluate
+poetry run maturity-meter evaluate https://github.com/owner/repo \
+  --doi 10.1000/example --biotools-id example
 ```
 
 ## Web API
@@ -18,14 +19,22 @@ poetry run maturity-meter evaluate
 poetry run maturity-meter-serve
 ```
 
-`GET /evaluate` returns the maturity result.
+`POST /evaluate` with a JSON body returns the maturity result:
+
+```json
+{"repository": "https://github.com/owner/repo", "dois": [], "biotools_id": null}
+```
+
+Only `repository` is required.
 
 ## Library
 
 ```python
-from maturity_meter import evaluate_maturity
+from maturity_meter import EvaluationRequest, evaluate_maturity
 
-result = evaluate_maturity()
+result = evaluate_maturity(
+    EvaluationRequest(repository="https://github.com/owner/repo")
+)
 ```
 
 ## Functions
