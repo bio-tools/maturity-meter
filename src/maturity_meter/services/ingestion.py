@@ -21,6 +21,7 @@ from maturity_meter.external import (
     GitHubIngestor,
     GitLabIngestor,
     OpenAlexIngestor,
+    OpenEBenchIngestor,
     ResquiError,
     ResquiIngestor,
 )
@@ -158,6 +159,12 @@ async def ingest(request: EvaluationRequest) -> IngestedData:
         if request.biotools_id
         else _none()
     )
+    # OpenEBench is looked up by bio.tools ID, so it needs one.
+    openebench: Awaitable[dict[str, Any] | None] = (
+        _optional("OpenEBench", OpenEBenchIngestor(request.biotools_id).fetch())
+        if request.biotools_id
+        else _none()
+    )
     europe_pmc = [
         _optional(f"Europe PMC {doi}", EuropePMCIngestor(doi=doi).fetch())
         for doi in request.dois
@@ -176,12 +183,14 @@ async def ingest(request: EvaluationRequest) -> IngestedData:
         (
             repository,
             biotools_data,
+            openebench_data,
             openalex_data,
             quality_data,
             *europe_pmc_data,
         ) = await asyncio.gather(
             repository_ingestor(request).fetch(),
             biotools,
+            openebench,
             openalex,
             quality,
             *europe_pmc,
@@ -192,6 +201,7 @@ async def ingest(request: EvaluationRequest) -> IngestedData:
         request=request,
         repository=repository,
         biotools=biotools_data,
+        openebench=openebench_data,
         quality_checks=quality_data,
         europe_pmc=dict(zip(request.dois, europe_pmc_data, strict=True)),
         openalex=openalex_data or {},

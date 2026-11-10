@@ -187,6 +187,9 @@ class IngestedData:
         Raw GitHub or GitLab ingestor output.
     biotools : dict[str, Any] | None
         Raw bio.tools entry, if a bio.tools ID was given and found.
+    openebench : dict[str, Any] | None
+        OpenEBench ``tool`` record and ``metrics`` for the bio.tools ID, or None
+        when no ID was given or OpenEBench does not know the tool.
     quality_checks : dict[str, Any] | None
         resqui quality assessment, or None when it was not run (non-GitHub
         repository) or failed.
@@ -199,6 +202,7 @@ class IngestedData:
     request: EvaluationRequest
     repository: dict[str, Any]
     biotools: dict[str, Any] | None = None
+    openebench: dict[str, Any] | None = None
     quality_checks: dict[str, Any] | None = None
     europe_pmc: dict[str, dict[str, Any] | None] = field(default_factory=dict)
     openalex: dict[str, dict[str, Any] | None] = field(default_factory=dict)
