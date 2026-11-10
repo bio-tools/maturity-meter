@@ -38,6 +38,27 @@ request = EvaluationRequest(repository="https://github.com/owner/repo")
 result = asyncio.run(evaluate_maturity(request))
 ```
 
+## Supplying data you already have
+
+If another tool already has some of the data (for example a clone's metadata or
+the bio.tools record), pass it in: whatever is supplied is used as-is, and
+everything missing is fetched. Use the `data` field of `EvaluationRequest`, the
+`data` key in the API body, or `--data file.json` on the command line. Any
+subset works, including none.
+
+```json
+{
+  "repository": {"...": "raw GitHub or GitLab ingestor output"},
+  "biotools": {"...": "raw bio.tools entry"},
+  "europe_pmc": {"10.1000/abc": {"...": "record"}},
+  "openalex": {"https://doi.org/10.1000/abc": {"...": "work"}}
+}
+```
+
+The other keys are `openebench` and `quality_checks`. `europe_pmc` and
+`openalex` are keyed by DOI (in any common form): DOIs in `dois` without a
+supplied record are fetched, and supplied DOIs not in `dois` are kept.
+
 ## Functions
 
 - **Evaluate maturity** of a repository: statistical calculation, data
