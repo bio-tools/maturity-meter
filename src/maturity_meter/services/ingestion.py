@@ -13,6 +13,7 @@ from typing import Any
 
 import httpx
 
+from maturity_meter.config import get_settings
 from maturity_meter.external import (
     BiotoolsIngestor,
     EuropePMCIngestor,
@@ -20,6 +21,8 @@ from maturity_meter.external import (
     GitHubIngestor,
     GitLabIngestor,
     OpenAlexIngestor,
+    ResquiError,
+    ResquiIngestor,
 )
 from maturity_meter.external.protocols import Ingestor
 from maturity_meter.models import EvaluationRequest, IngestedData
@@ -116,9 +119,14 @@ async def _optional[T](source: str, awaitable: Awaitable[T]) -> T | None:
     """Await an optional source, returning None if it is unavailable."""
     try:
         return await awaitable
-    except (httpx.HTTPError, EuropePMCNotFoundError) as error:
+    except (httpx.HTTPError, EuropePMCNotFoundError, ResquiError) as error:
         logger.warning(f"Skipping {source}: {error}")
         return None
+
+
+def _github_token() -> str | None:
+    token = get_settings().github_token
+    return token.get_secret_value() if token else None
 
 
 async def _none() -> None:
@@ -154,6 +162,13 @@ async def ingest(request: EvaluationRequest) -> IngestedData:
         _optional(f"Europe PMC {doi}", EuropePMCIngestor(doi=doi).fetch())
         for doi in request.dois
     ]
+    # resqui clones the repository and runs Docker checks, so it is by far the
+    # slowest source. It only supports GitHub, and degrades to None on failure.
+    quality: Awaitable[dict[str, Any] | None] = (
+        _optional("resqui", ResquiIngestor(request.repository, _github_token()).fetch())
+        if request.host == "github.com"
+        else _none()
+    )
     # OpenAlex handles missing DOIs itself, mapping them to None.
     openalex = OpenAlexIngestor(request.dois).fetch() if request.dois else _none()
 
@@ -162,9 +177,14 @@ async def ingest(request: EvaluationRequest) -> IngestedData:
             repository,
             biotools_data,
             openalex_data,
+            quality_data,
             *europe_pmc_data,
         ) = await asyncio.gather(
-            repository_ingestor(request).fetch(), biotools, openalex, *europe_pmc
+            repository_ingestor(request).fetch(),
+            biotools,
+            openalex,
+            quality,
+            *europe_pmc,
         )
     except (httpx.HTTPError, ValueError) as error:
         raise _repository_error(request, error) from error
@@ -172,6 +192,7 @@ async def ingest(request: EvaluationRequest) -> IngestedData:
         request=request,
         repository=repository,
         biotools=biotools_data,
+        quality_checks=quality_data,
         europe_pmc=dict(zip(request.dois, europe_pmc_data, strict=True)),
         openalex=openalex_data or {},
     )
