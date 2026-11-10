@@ -14,11 +14,15 @@ import typer
 from pydantic import ValidationError
 
 from maturity_meter.models import EvaluationRequest
-from maturity_meter.services.ingestion import RepositoryFetchError
-from maturity_meter.services.processing import evaluate_maturity
+from maturity_meter.services.ingestion import RepositoryFetchError, ingest
+from maturity_meter.services.processing import score
 
 
-def run(request: EvaluationRequest, output: Path | None = None) -> str:
+def run(
+    request: EvaluationRequest,
+    output: Path | None = None,
+    save_data: Path | None = None,
+) -> str:
     """Run the command logic without printing to the terminal.
 
     Parameters
@@ -27,6 +31,8 @@ def run(request: EvaluationRequest, output: Path | None = None) -> str:
         Repository and optional publication/bio.tools identifiers.
     output : pathlib.Path, optional
         File to also save the result to, as JSON.
+    save_data : pathlib.Path, optional
+        File to save the ingested data to, as JSON (reusable with ``--data``).
 
     Returns
     -------
@@ -35,7 +41,10 @@ def run(request: EvaluationRequest, output: Path | None = None) -> str:
     """
     # Keeping command logic in a pure helper makes it straightforward to test
     # without capturing terminal output.
-    result = asyncio.run(evaluate_maturity(request))
+    data = asyncio.run(ingest(request))
+    if save_data is not None:
+        data.save(save_data)
+    result = score(data)
     if output is not None:
         result.save(output)
     return result.to_json()
@@ -60,9 +69,8 @@ def command(
             exists=True,
             dir_okay=False,
             help=(
-                "JSON file with already-fetched data (repository, biotools, "
-                "openebench, quality_checks, europe_pmc, openalex). Sources "
-                "present in it are not fetched."
+                "JSON file with already-fetched data, e.g. one written by "
+                "--save-data. Sources present in it are not fetched."
             ),
         ),
     ] = None,
@@ -73,6 +81,14 @@ def command(
             "-o",
             dir_okay=False,
             help="Also save the result to this file as JSON.",
+        ),
+    ] = None,
+    save_data: Annotated[
+        Path | None,
+        typer.Option(
+            "--save-data",
+            dir_okay=False,
+            help="Save the ingested data to this file as JSON (reusable with --data).",
         ),
     ] = None,
 ) -> None:
@@ -87,7 +103,7 @@ def command(
     except (ValidationError, json.JSONDecodeError) as error:
         raise typer.BadParameter(str(error)) from error
     try:
-        typer.echo(run(request, output))
+        typer.echo(run(request, output, save_data))
     except RepositoryFetchError as error:
         typer.echo(f"Error: {error}", err=True)
         raise typer.Exit(code=1) from error

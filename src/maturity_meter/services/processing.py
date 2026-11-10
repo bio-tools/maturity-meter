@@ -10,7 +10,7 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from maturity_meter.components import combine
-from maturity_meter.models import Evaluation, EvaluationRequest
+from maturity_meter.models import Evaluation, EvaluationRequest, IngestedData
 from maturity_meter.services.ingestion import ingest
 
 logger = logging.getLogger(__name__)
@@ -62,5 +62,20 @@ async def evaluate_maturity(request: EvaluationRequest) -> MaturityResult:
         Evaluated maturity.
     """
     logger.debug("Evaluating maturity of %s", request.repository)
-    data = await ingest(request)
+    return score(await ingest(request))
+
+
+def score(data: IngestedData) -> MaturityResult:
+    """Score already-ingested data, without fetching anything.
+
+    Parameters
+    ----------
+    data : IngestedData
+        Data collected by :func:`~maturity_meter.services.ingestion.ingest`.
+
+    Returns
+    -------
+    MaturityResult
+        Evaluated maturity.
+    """
     return MaturityResult(maturity=combine(data))

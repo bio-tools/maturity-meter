@@ -13,6 +13,10 @@ poetry run maturity-meter evaluate https://github.com/owner/repo \
   --doi 10.1000/example --biotools-id example
 ```
 
+The result is printed as JSON. `-o result.json` also saves it, and
+`--save-data data.json` saves the ingested data, which can be re-scored later
+without fetching anything: `--data data.json`.
+
 ## Web API
 
 ```bash

@@ -9,10 +9,18 @@ handed to the maturity components.
 import ipaddress
 import re
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    TypeAdapter,
+    field_validator,
+    model_validator,
+)
 
 # Hosts that are not a public forge: the server fetches whatever host it is
 # given, so refuse names and addresses that point at internal networks.
@@ -59,7 +67,8 @@ class SuppliedData(BaseModel):
     used as-is; whatever is missing is fetched. For the per-DOI sources this
     holds per DOI: DOIs in ``dois`` without a supplied record are fetched, and
     supplied DOIs that are not in ``dois`` are kept. ``edam`` works the same
-    per format IRI.
+    per format IRI. A file saved with :meth:`IngestedData.save` can be
+    supplied as-is; its ``request`` is ignored.
 
     Parameters
     ----------
@@ -82,6 +91,25 @@ class SuppliedData(BaseModel):
     europe_pmc: dict[str, dict[str, Any] | None] = Field(default_factory=dict)
     openalex: dict[str, dict[str, Any] | None] = Field(default_factory=dict)
     edam: dict[str, dict[str, Any] | None] = Field(default_factory=dict)
+
+    @model_validator(mode="before")
+    @classmethod
+    def drop_request(cls, value: Any) -> Any:
+        """Accept a saved :class:`IngestedData` file by ignoring its request.
+
+        Parameters
+        ----------
+        value : Any
+            Raw input, usually a dict of sources.
+
+        Returns
+        -------
+        Any
+            The input without a top-level ``request`` key.
+        """
+        if isinstance(value, dict) and "request" in value:
+            return {k: v for k, v in value.items() if k != "request"}
+        return value
 
     @field_validator("europe_pmc", "openalex")
     @classmethod
@@ -291,6 +319,29 @@ class IngestedData:
     europe_pmc: dict[str, dict[str, Any] | None] = field(default_factory=dict)
     openalex: dict[str, dict[str, Any] | None] = field(default_factory=dict)
     edam: dict[str, dict[str, Any] | None] = field(default_factory=dict)
+
+    def to_json(self) -> str:
+        """Serialize the data as indented JSON.
+
+        The sources use the same keys as :class:`SuppliedData`, so a saved file
+        can be passed back in as supplied data (its ``request`` is ignored).
+
+        Returns
+        -------
+        str
+            The request and every source, as JSON.
+        """
+        return TypeAdapter(IngestedData).dump_json(self, indent=2).decode()
+
+    def save(self, path: Path) -> None:
+        """Write the data to ``path`` as indented JSON.
+
+        Parameters
+        ----------
+        path : pathlib.Path
+            File to write; it is overwritten if it exists.
+        """
+        path.write_text(self.to_json() + "\n")
 
 
 class MetricResult(BaseModel):
