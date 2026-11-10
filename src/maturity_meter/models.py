@@ -58,14 +58,17 @@ class SuppliedData(BaseModel):
     Values use the raw shapes the ingestors return. Whatever is supplied is
     used as-is; whatever is missing is fetched. For the per-DOI sources this
     holds per DOI: DOIs in ``dois`` without a supplied record are fetched, and
-    supplied DOIs that are not in ``dois`` are kept.
+    supplied DOIs that are not in ``dois`` are kept. ``edam`` works the same
+    per format IRI.
 
     Parameters
     ----------
-    repository, biotools, openebench, quality_checks : dict | None
+    repository, biotools, openebench, quality_checks, rsec, code_metrics : dict | None
         Raw record for that source, or ``None`` to fetch it.
     europe_pmc, openalex : dict[str, dict | None]
         Records keyed by DOI (bare, ``doi:...`` or doi.org URL).
+    edam : dict[str, dict | None]
+        EDAM terms keyed by format IRI.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -74,8 +77,11 @@ class SuppliedData(BaseModel):
     biotools: dict[str, Any] | None = None
     openebench: dict[str, Any] | None = None
     quality_checks: dict[str, Any] | None = None
+    rsec: dict[str, Any] | None = None
+    code_metrics: dict[str, Any] | None = None
     europe_pmc: dict[str, dict[str, Any] | None] = Field(default_factory=dict)
     openalex: dict[str, dict[str, Any] | None] = Field(default_factory=dict)
+    edam: dict[str, dict[str, Any] | None] = Field(default_factory=dict)
 
     @field_validator("europe_pmc", "openalex")
     @classmethod
@@ -251,7 +257,8 @@ class IngestedData:
     request : EvaluationRequest
         The request the data was collected for.
     repository : dict[str, Any]
-        Raw GitHub or GitLab ingestor output.
+        Raw GitHub or GitLab ingestor output (repository record, files,
+        contributors, closed issues, ...).
     biotools : dict[str, Any] | None
         Raw bio.tools entry, if a bio.tools ID was given and found.
     openebench : dict[str, Any] | None
@@ -260,10 +267,18 @@ class IngestedData:
     quality_checks : dict[str, Any] | None
         resqui quality assessment, or None when it was not run (non-GitHub
         repository) or failed.
+    rsec : dict[str, Any] | None
+        RSEc metadata file names for the bio.tools ID (Bioconda, Debian Med,
+        BioContainers, Galaxy, ...), or None without an ID or RSEc entry.
+    code_metrics : dict[str, Any] | None
+        Lizard complexity and duplication metrics, or None if unavailable.
     europe_pmc : dict[str, dict[str, Any] | None]
         Europe PMC record per DOI.
     openalex : dict[str, dict[str, Any] | None]
         OpenAlex work per DOI.
+    edam : dict[str, dict[str, Any] | None]
+        EDAM term (label, ``has_children``, ``is_obsolete``) per format IRI
+        used in the bio.tools entry.
     """
 
     request: EvaluationRequest
@@ -271,8 +286,11 @@ class IngestedData:
     biotools: dict[str, Any] | None = None
     openebench: dict[str, Any] | None = None
     quality_checks: dict[str, Any] | None = None
+    rsec: dict[str, Any] | None = None
+    code_metrics: dict[str, Any] | None = None
     europe_pmc: dict[str, dict[str, Any] | None] = field(default_factory=dict)
     openalex: dict[str, dict[str, Any] | None] = field(default_factory=dict)
+    edam: dict[str, dict[str, Any] | None] = field(default_factory=dict)
 
 
 class Evaluation(BaseModel):

@@ -7,8 +7,7 @@ Raises EuropePMCNotFoundError if no record is found.
 import logging
 from typing import Any
 
-import httpx
-
+from maturity_meter.external.http import get_json
 from maturity_meter.external.protocols import Ingestor
 
 logger = logging.getLogger(__name__)
@@ -59,28 +58,12 @@ class EuropePMCIngestor(Ingestor):
             queries.append(f'EXT_ID:"{self.doi}"')
         return queries
 
-    async def _get(self, params: dict[str, Any]) -> dict[str, Any]:
-        all_params = {
-            "format": "json",
-            "resultType": "core",
-            "pageSize": 1,
-            **params,
-        }
-        url = f"{EUROPE_PMC_API_BASE}/search"
-        try:
-            async with httpx.AsyncClient(timeout=HTTP_TIMEOUT_SECONDS) as client:
-                resp = await client.get(url, params=all_params)
-                resp.raise_for_status()
-                data: dict[str, Any] = resp.json()
-                return data
-        except httpx.RequestError as e:
-            logger.error(f"Network error while querying Europe PMC: {e}")
-            raise
-        except httpx.HTTPStatusError as e:
-            logger.warning(
-                f"HTTP {e.response.status_code} from Europe PMC for params={all_params}"
-            )
-            raise
+    async def _search(self, query: str) -> dict[str, Any]:
+        params = {"format": "json", "resultType": "core", "pageSize": 1, "query": query}
+        data: dict[str, Any] = await get_json(
+            f"{EUROPE_PMC_API_BASE}/search", params=params, timeout=HTTP_TIMEOUT_SECONDS
+        )
+        return data
 
     @staticmethod
     def _first_result(payload: dict[str, Any]) -> dict[str, Any] | None:
@@ -104,16 +87,14 @@ class EuropePMCIngestor(Ingestor):
         httpx.RequestError, httpx.HTTPStatusError
             For network/HTTP issues.
         """
-        queries = self._build_queries()
-        logger.debug(f"EuropePMCIngestor queries: {queries}")
-
-        for q in queries:
-            logger.debug(f"Querying Europe PMC with: {q}")
-            data = await self._get({"query": q})
-            rec = self._first_result(data)
-            if rec:
-                logger.info("Found Europe PMC record")
-                return rec
+        # All identifier forms name the same publication, so one OR query
+        # replaces trying them one after another.
+        query = " OR ".join(f"({q})" for q in self._build_queries())
+        logger.debug(f"Querying Europe PMC with: {query}")
+        rec = self._first_result(await self._search(query))
+        if rec:
+            logger.info("Found Europe PMC record")
+            return rec
 
         msg = (
             "No Europe PMC record found for identifiers "

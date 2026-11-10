@@ -6,8 +6,7 @@ Fetches a tool record and its metrics by bio.tools ID and returns the raw JSON.
 import logging
 from typing import Any
 
-import httpx
-
+from maturity_meter.external.http import get_json, get_json_optional
 from maturity_meter.external.protocols import Ingestor
 
 logger = logging.getLogger(__name__)
@@ -29,20 +28,14 @@ class OpenEBenchIngestor(Ingestor):
     def __init__(self, biotools_id: str):
         self.biotools_id = biotools_id
 
-    async def _get(self, path: str) -> dict[str, Any]:
+    async def _get(self, path: str, *, optional: bool = False) -> Any:
         url = f"{OPENEBENCH_API_BASE}/{path}"
-        try:
-            async with httpx.AsyncClient(timeout=HTTP_TIMEOUT_SECONDS) as client:
-                resp = await client.get(url, headers={"Accept": "application/json"})
-                resp.raise_for_status()
-                data: dict[str, Any] = resp.json()
-                return data
-        except httpx.RequestError as e:
-            logger.error(f"Network error while fetching {url}: {e}")
-            raise
-        except httpx.HTTPStatusError as e:
-            logger.warning(f"HTTP error {e.response.status_code} from {url}")
-            raise
+        headers = {"Accept": "application/json"}
+        if optional:
+            return await get_json_optional(
+                url, headers=headers, timeout=HTTP_TIMEOUT_SECONDS
+            )
+        return await get_json(url, headers=headers, timeout=HTTP_TIMEOUT_SECONDS)
 
     async def fetch_tool(self) -> dict[str, Any]:
         """
@@ -60,7 +53,8 @@ class OpenEBenchIngestor(Ingestor):
             With status 404 if OpenEBench does not know the tool.
         """
         logger.debug(f"Fetching OpenEBench tool biotools:{self.biotools_id}")
-        return await self._get(f"tool/biotools:{self.biotools_id}")
+        tool: dict[str, Any] = await self._get(f"tool/biotools:{self.biotools_id}")
+        return tool
 
     async def fetch_metrics(self, tool: dict[str, Any]) -> dict[str, Any] | None:
         """
@@ -82,13 +76,12 @@ class OpenEBenchIngestor(Ingestor):
         if not tool_id.startswith(prefix):
             logger.info(f"OpenEBench tool {self.biotools_id} has no usable @id")
             return None
-        try:
-            return await self._get(f"metrics/{tool_id.removeprefix(prefix)}")
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                logger.info(f"No OpenEBench metrics for {self.biotools_id}")
-                return None
-            raise
+        metrics: dict[str, Any] | None = await self._get(
+            f"metrics/{tool_id.removeprefix(prefix)}", optional=True
+        )
+        if metrics is None:
+            logger.info(f"No OpenEBench metrics for {self.biotools_id}")
+        return metrics
 
     async def fetch(self) -> dict[str, Any]:
         """

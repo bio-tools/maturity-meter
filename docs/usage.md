@@ -55,9 +55,11 @@ subset works, including none.
 }
 ```
 
-The other keys are `openebench` and `quality_checks`. `europe_pmc` and
+The other keys are `openebench`, `quality_checks`, `rsec` and `code_metrics`
+(supplying `code_metrics` avoids cloning the repository). `europe_pmc` and
 `openalex` are keyed by DOI (in any common form): DOIs in `dois` without a
-supplied record are fetched, and supplied DOIs not in `dois` are kept.
+supplied record are fetched, and supplied DOIs not in `dois` are kept. `edam`
+works the same way, keyed by EDAM format IRI.
 
 ## Functions
 
