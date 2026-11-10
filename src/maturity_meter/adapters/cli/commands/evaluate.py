@@ -33,7 +33,7 @@ def run(request: EvaluationRequest) -> str:
     """
     # Keeping command logic in a pure helper makes it straightforward to test
     # without capturing terminal output.
-    return str(asyncio.run(evaluate_maturity(request)).maturity_placeholder)
+    return str(asyncio.run(evaluate_maturity(request)).maturity)
 
 
 def command(

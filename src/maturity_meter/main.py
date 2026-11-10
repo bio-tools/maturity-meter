@@ -29,7 +29,7 @@ def main() -> None:
         result = asyncio.run(evaluate_maturity(request))
     except RepositoryFetchError as error:
         sys.exit(f"Error: {error}")
-    print(result.maturity_placeholder)
+    print(result.maturity)
 
 
 if __name__ == "__main__":
