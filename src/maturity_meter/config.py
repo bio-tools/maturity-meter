@@ -36,6 +36,8 @@ class Settings(BaseSettings):
     gitlab_token : pydantic.SecretStr | None
         Optional GitLab personal access token. Public projects can be read
         without one.
+    openalex_api_key : pydantic.SecretStr | None
+        Optional OpenAlex API key for higher rate limits.
     """
 
     model_config = SettingsConfigDict(
@@ -52,6 +54,7 @@ class Settings(BaseSettings):
     public_base_url: AnyHttpUrl | None = None
     github_token: SecretStr | None = None
     gitlab_token: SecretStr | None = None
+    openalex_api_key: SecretStr | None = None
 
     @field_validator("server_host")
     @classmethod
