@@ -1839,7 +1839,7 @@ docs = ["mkdocs", "mkdocstrings[python]"]
 type = "git"
 url = "https://github.com/bio-tools/QualityPipelines.git"
 reference = "main"
-resolved_reference = "8c3bad1ad9238cc5034c18c6ce14fa8a254c1098"
+resolved_reference = "aec3294020099b5d67cd646fb1d2ef07d3424827"
 
 [[package]]
 name = "rich"
