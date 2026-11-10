@@ -9,6 +9,7 @@ import sys
 
 from maturity_meter.logging_config import configure_logging
 from maturity_meter.models import EvaluationRequest
+from maturity_meter.services.ingestion import RepositoryFetchError
 from maturity_meter.services.processing import evaluate_maturity
 
 
@@ -24,7 +25,10 @@ def main() -> None:
     # Delegate to the service layer so the entry point stays small and
     # testable.
     request = EvaluationRequest(repository=sys.argv[1])
-    result = asyncio.run(evaluate_maturity(request))
+    try:
+        result = asyncio.run(evaluate_maturity(request))
+    except RepositoryFetchError as error:
+        sys.exit(f"Error: {error}")
     print(result.maturity_placeholder)
 
 

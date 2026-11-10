@@ -107,9 +107,10 @@ class GitLabIngestor(Ingestor):
             Raw JSON for the project from GET /projects/:id.
         """
         logger.debug(f"Fetching project: {self.project_url}")
-        data: dict[str, Any] = await self._get(
-            self.project_url, params={"license": "true"}
-        )
+        data = await self._get(self.project_url, params={"license": "true"})
+        if not isinstance(data, dict):
+            # Hosts that are not GitLab typically answer with an HTML page.
+            raise ValueError(f"{self.host} did not return GitLab API JSON")
         logger.info(f"Ingested data for {self.owner}/{self.repo} successfully")
         return data
 

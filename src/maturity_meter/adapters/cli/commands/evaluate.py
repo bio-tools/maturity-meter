@@ -12,6 +12,7 @@ import typer
 from pydantic import ValidationError
 
 from maturity_meter.models import EvaluationRequest
+from maturity_meter.services.ingestion import RepositoryFetchError
 from maturity_meter.services.processing import evaluate_maturity
 
 
@@ -53,4 +54,8 @@ def command(
         )
     except ValidationError as error:
         raise typer.BadParameter(str(error)) from error
-    typer.echo(run(request))
+    try:
+        typer.echo(run(request))
+    except RepositoryFetchError as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(code=1) from error
