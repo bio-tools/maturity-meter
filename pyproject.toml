@@ -9,7 +9,7 @@ description = "Automated maturity model for research software tools"
 readme = "README.md"
 requires-python = ">=3.12"
 license-files = ["LICENSE"]
-dependencies = ["typer", "pydantic-settings", "httpx (>=0.28.1,<0.29.0)"]
+dependencies = ["typer", "pydantic-settings", "httpx (>=0.28.1,<0.29.0)", "resqui @ git+https://github.com/bio-tools/QualityPipelines.git@main"]
 keywords = ["software maturity", "FAIR software ", "Open science", "Software management", "Software engineering"]
 classifiers = ["Programming Language :: Python :: 3", "Operating System :: OS Independent"]
 
