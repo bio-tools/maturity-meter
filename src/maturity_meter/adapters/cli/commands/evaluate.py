@@ -6,6 +6,8 @@ test.
 """
 
 import asyncio
+import json
+from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -46,13 +48,29 @@ def command(
         str | None,
         typer.Option("--biotools-id", help="bio.tools identifier of the software."),
     ] = None,
+    data: Annotated[
+        Path | None,
+        typer.Option(
+            "--data",
+            exists=True,
+            dir_okay=False,
+            help=(
+                "JSON file with already-fetched data (repository, biotools, "
+                "openebench, quality_checks, europe_pmc, openalex). Sources "
+                "present in it are not fetched."
+            ),
+        ),
+    ] = None,
 ) -> None:
     """Evaluate maturity of a repository and print the result."""
     try:
         request = EvaluationRequest(
-            repository=repository, dois=doi or [], biotools_id=biotools_id
+            repository=repository,
+            dois=doi or [],
+            biotools_id=biotools_id,
+            data=json.loads(data.read_text()) if data else {},
         )
-    except ValidationError as error:
+    except (ValidationError, json.JSONDecodeError) as error:
         raise typer.BadParameter(str(error)) from error
     try:
         typer.echo(run(request))

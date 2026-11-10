@@ -8,7 +8,7 @@ evaluation.
 
 import asyncio
 import logging
-from collections.abc import Awaitable
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 import httpx
@@ -134,6 +134,17 @@ async def _none() -> None:
     return None
 
 
+async def _given[T](value: T) -> T:
+    return value
+
+
+def _supplied_or[T](
+    value: T | None, fetch: Callable[[], Awaitable[T | None]]
+) -> Awaitable[T | None]:
+    """Use the supplied value if there is one, otherwise fetch it."""
+    return _given(value) if value is not None else fetch()
+
+
 async def ingest(request: EvaluationRequest) -> IngestedData:
     """Fetch all external metadata for ``request`` concurrently.
 
@@ -154,30 +165,53 @@ async def ingest(request: EvaluationRequest) -> IngestedData:
         logged and reported as ``None`` instead.
     """
     logger.debug(f"Ingesting metadata for {request.repository}")
-    biotools: Awaitable[dict[str, Any] | None] = (
-        _optional("bio.tools", BiotoolsIngestor(request.biotools_id).fetch())
-        if request.biotools_id
-        else _none()
+    # Supplied data is used as-is; everything missing is fetched.
+    supplied = request.data
+    biotools_id = request.biotools_id
+    # The repository is mandatory, so it is never None once ingested.
+    repository_task: Awaitable[dict[str, Any]] = (
+        _given(supplied.repository)
+        if supplied.repository is not None
+        else repository_ingestor(request).fetch()
+    )
+    biotools = _supplied_or(
+        supplied.biotools,
+        lambda: (
+            _optional("bio.tools", BiotoolsIngestor(biotools_id).fetch())
+            if biotools_id
+            else _none()
+        ),
     )
     # OpenEBench is looked up by bio.tools ID, so it needs one.
-    openebench: Awaitable[dict[str, Any] | None] = (
-        _optional("OpenEBench", OpenEBenchIngestor(request.biotools_id).fetch())
-        if request.biotools_id
-        else _none()
+    openebench = _supplied_or(
+        supplied.openebench,
+        lambda: (
+            _optional("OpenEBench", OpenEBenchIngestor(biotools_id).fetch())
+            if biotools_id
+            else _none()
+        ),
     )
-    europe_pmc = [
-        _optional(f"Europe PMC {doi}", EuropePMCIngestor(doi=doi).fetch())
-        for doi in request.dois
-    ]
     # resqui clones the repository and runs Docker checks, so it is by far the
     # slowest source. It only supports GitHub, and degrades to None on failure.
-    quality: Awaitable[dict[str, Any] | None] = (
-        _optional("resqui", ResquiIngestor(request.repository, _github_token()).fetch())
-        if request.host == "github.com"
-        else _none()
+    quality = _supplied_or(
+        supplied.quality_checks,
+        lambda: (
+            _optional(
+                "resqui", ResquiIngestor(request.repository, _github_token()).fetch()
+            )
+            if request.host == "github.com"
+            else _none()
+        ),
     )
+    # Per-DOI sources: only DOIs without a supplied record are fetched.
+    missing_pmc = [doi for doi in request.dois if doi not in supplied.europe_pmc]
+    europe_pmc = [
+        _optional(f"Europe PMC {doi}", EuropePMCIngestor(doi=doi).fetch())
+        for doi in missing_pmc
+    ]
     # OpenAlex handles missing DOIs itself, mapping them to None.
-    openalex = OpenAlexIngestor(request.dois).fetch() if request.dois else _none()
+    missing_oa = [doi for doi in request.dois if doi not in supplied.openalex]
+    openalex = OpenAlexIngestor(missing_oa).fetch() if missing_oa else _none()
 
     try:
         (
@@ -188,7 +222,7 @@ async def ingest(request: EvaluationRequest) -> IngestedData:
             quality_data,
             *europe_pmc_data,
         ) = await asyncio.gather(
-            repository_ingestor(request).fetch(),
+            repository_task,
             biotools,
             openebench,
             openalex,
@@ -203,6 +237,9 @@ async def ingest(request: EvaluationRequest) -> IngestedData:
         biotools=biotools_data,
         openebench=openebench_data,
         quality_checks=quality_data,
-        europe_pmc=dict(zip(request.dois, europe_pmc_data, strict=True)),
-        openalex=openalex_data or {},
+        europe_pmc={
+            **dict(zip(missing_pmc, europe_pmc_data, strict=True)),
+            **supplied.europe_pmc,
+        },
+        openalex={**(openalex_data or {}), **supplied.openalex},
     )

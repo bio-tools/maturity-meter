@@ -28,6 +28,75 @@ _DOI_PREFIX_PATTERN = re.compile(
 _BIOTOOLS_ID_PATTERN = re.compile(r"^[A-Za-z0-9_.\-]+$")
 
 
+def normalize_doi(value: str) -> str:
+    """Strip URL or ``doi:`` prefixes from a DOI and validate it.
+
+    Parameters
+    ----------
+    value : str
+        DOI in any common form (bare, ``doi:...``, or a doi.org URL).
+
+    Returns
+    -------
+    str
+        The bare ``10.xxxx/...`` DOI.
+
+    Raises
+    ------
+    ValueError
+        If ``value`` is not a valid DOI.
+    """
+    doi = _DOI_PREFIX_PATTERN.sub("", value.strip())
+    if not _DOI_PATTERN.match(doi):
+        raise ValueError(f"Invalid DOI: {value!r}")
+    return doi
+
+
+class SuppliedData(BaseModel):
+    """Already-fetched data for any subset of sources.
+
+    Values use the raw shapes the ingestors return. Whatever is supplied is
+    used as-is; whatever is missing is fetched. For the per-DOI sources this
+    holds per DOI: DOIs in ``dois`` without a supplied record are fetched, and
+    supplied DOIs that are not in ``dois`` are kept.
+
+    Parameters
+    ----------
+    repository, biotools, openebench, quality_checks : dict | None
+        Raw record for that source, or ``None`` to fetch it.
+    europe_pmc, openalex : dict[str, dict | None]
+        Records keyed by DOI (bare, ``doi:...`` or doi.org URL).
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    repository: dict[str, Any] | None = None
+    biotools: dict[str, Any] | None = None
+    openebench: dict[str, Any] | None = None
+    quality_checks: dict[str, Any] | None = None
+    europe_pmc: dict[str, dict[str, Any] | None] = Field(default_factory=dict)
+    openalex: dict[str, dict[str, Any] | None] = Field(default_factory=dict)
+
+    @field_validator("europe_pmc", "openalex")
+    @classmethod
+    def normalize_doi_keys(
+        cls, value: dict[str, dict[str, Any] | None]
+    ) -> dict[str, dict[str, Any] | None]:
+        """Normalize DOI keys so they match ``EvaluationRequest.dois``.
+
+        Parameters
+        ----------
+        value : dict[str, dict | None]
+            Records keyed by DOI in any common form.
+
+        Returns
+        -------
+        dict[str, dict | None]
+            Records keyed by bare DOI.
+        """
+        return {normalize_doi(doi): record for doi, record in value.items()}
+
+
 class EvaluationRequest(BaseModel):
     """What to evaluate.
 
@@ -43,6 +112,9 @@ class EvaluationRequest(BaseModel):
         bare ``10.xxxx/...`` form.
     biotools_id : str | None
         Optional bio.tools identifier of the software.
+    data : SuppliedData
+        Optional already-fetched data for any subset of sources; see
+        :class:`SuppliedData`. Everything not supplied is fetched.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -50,6 +122,7 @@ class EvaluationRequest(BaseModel):
     repository: str
     dois: list[str] = Field(default_factory=list)
     biotools_id: str | None = None
+    data: SuppliedData = Field(default_factory=SuppliedData)
 
     @field_validator("repository")
     @classmethod
@@ -115,13 +188,7 @@ class EvaluationRequest(BaseModel):
         ValueError
             If an entry is not a valid DOI.
         """
-        normalized: dict[str, None] = {}
-        for value in values:
-            doi = _DOI_PREFIX_PATTERN.sub("", value.strip())
-            if not _DOI_PATTERN.match(doi):
-                raise ValueError(f"Invalid DOI: {value!r}")
-            normalized[doi] = None
-        return list(normalized)
+        return list(dict.fromkeys(normalize_doi(value) for value in values))
 
     @field_validator("biotools_id")
     @classmethod
