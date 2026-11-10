@@ -317,11 +317,27 @@ class MetricResult(BaseModel):
     note: str | None = None
 
 
-class Evaluation(BaseModel):
-    """Metric results per maturity dimension for one evaluation.
+class DimensionResult(BaseModel):
+    """Result of one maturity dimension: its score and its metrics.
 
-    Each dimension is a list of :class:`MetricResult`, one per metric; an
-    empty list means no metric of that dimension was computed.
+    Parameters
+    ----------
+    value : float | None
+        Score of the dimension, derived from its metrics, or ``None`` when it
+        was not assessed. Required, so "not assessed" is always explicit.
+    metrics : DimensionResult
+        Results of the dimension's individual metrics; empty when none were
+        computed.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    value: float | None
+    metrics: list[MetricResult] = Field(default_factory=list)
+
+
+class Evaluation(BaseModel):
+    """Results per maturity dimension for one evaluation.
 
     Compatibility, FAIRness, maintainability, security and sustainability
     follow the EVERSE quality dimensions
@@ -330,9 +346,9 @@ class Evaluation(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    compatibility: list[MetricResult]
-    fairness: list[MetricResult]
-    maintainability: list[MetricResult]
-    scientific_impact: list[MetricResult]
-    security: list[MetricResult]
-    sustainability: list[MetricResult]
+    compatibility: DimensionResult
+    fairness: DimensionResult
+    maintainability: DimensionResult
+    scientific_impact: DimensionResult
+    security: DimensionResult
+    sustainability: DimensionResult
