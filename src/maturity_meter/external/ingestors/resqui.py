@@ -25,7 +25,7 @@ from maturity_meter.external.protocols import Ingestor
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_CONFIG = Path(__file__).parent / "config.json"
+DEFAULT_CONFIG = Path(__file__).parent / "resqui_config.json"
 TIMEOUT_SECONDS = 600
 LABEL = "maturity-meter-run"
 

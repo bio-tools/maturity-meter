@@ -7,9 +7,10 @@ packaged or deployed (Bioconda, Debian Med, BioContainers, Galaxy, ...).
 import logging
 from typing import Any
 
-from maturity_meter.external.github.github_auth import get_github_headers
 from maturity_meter.external.http import get_json
 from maturity_meter.external.protocols import Ingestor
+
+from .github import get_github_headers
 
 logger = logging.getLogger(__name__)
 

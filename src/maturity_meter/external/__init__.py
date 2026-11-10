@@ -2,16 +2,22 @@
 Infrastructure layer that handles all interactions with external systems and services.
 """
 
-from .biotools import BiotoolsIngestor
-from .code_metrics import CodeMetricsError, CodeMetricsIngestor
-from .edam import EDAMIngestor, formats_in_biotools
-from .europe_pmc import EuropePMCIngestor, EuropePMCNotFoundError
-from .github import GitHubIngestor
-from .gitlab import GitLabIngestor
-from .openalex import OpenAlexIngestor
-from .openebench import OpenEBenchIngestor
-from .resqui import ResquiError, ResquiIngestor
-from .rsec import RSEcIngestor
+from .ingestors import (
+    BiotoolsIngestor,
+    CodeMetricsError,
+    CodeMetricsIngestor,
+    EDAMIngestor,
+    EuropePMCIngestor,
+    EuropePMCNotFoundError,
+    GitHubIngestor,
+    GitLabIngestor,
+    OpenAlexIngestor,
+    OpenEBenchIngestor,
+    ResquiError,
+    ResquiIngestor,
+    RSEcIngestor,
+    formats_in_biotools,
+)
 
 __all__ = [
     "CodeMetricsError",

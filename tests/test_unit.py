@@ -50,7 +50,7 @@ def test_http_server_settings_are_typed(monkeypatch):
 def test_github_headers_use_configured_token(monkeypatch):
     """Ensure the GitHub token is sent only when configured."""
     from maturity_meter.config import get_settings
-    from maturity_meter.external.github.github_auth import get_github_headers
+    from maturity_meter.external.ingestors.github import get_github_headers
 
     monkeypatch.chdir("/")  # avoid picking up a local .env
     monkeypatch.delenv("MATURITY_METER_GITHUB_TOKEN", raising=False)
