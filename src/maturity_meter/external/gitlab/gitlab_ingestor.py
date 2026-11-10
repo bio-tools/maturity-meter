@@ -3,6 +3,7 @@ Async client for the GitLab API.
 Fetches a project and related metadata and returns the raw JSON.
 """
 
+import asyncio
 import logging
 from typing import Any
 from urllib.parse import quote
@@ -14,6 +15,12 @@ from maturity_meter.external.protocols import Ingestor
 from .gitlab_auth import get_gitlab_headers
 
 logger = logging.getLogger(__name__)
+
+PER_PAGE = 100
+# Paginated lists are capped so large projects do not exhaust the rate limit:
+# at most this many pages (of PER_PAGE items) per list; file trees get more.
+MAX_PAGES = 3
+MAX_TREE_PAGES = 10
 
 
 class GitLabIngestor(Ingestor):
@@ -63,11 +70,13 @@ class GitLabIngestor(Ingestor):
             logger.warning(f"HTTP error {e.response.status_code} from {url}")
             raise
 
-    async def _get_optional(self, url: str, what: str) -> Any | None:
+    async def _get_optional(
+        self, url: str, what: str, params: dict[str, Any] | None = None
+    ) -> Any | None:
         """GET ``url``, returning None when missing or the feature is disabled."""
         try:
             logger.debug(f"Fetching {what}: {url}")
-            return await self._get(url)
+            return await self._get(url, params=params)
         except httpx.HTTPStatusError as e:
             # GitLab answers 403 when a project feature (e.g. releases) is off.
             if e.response.status_code in (403, 404):
@@ -84,18 +93,164 @@ class GitLabIngestor(Ingestor):
         dict
             Raw JSON for the project, latest release, README, and languages.
         """
+        # The project record gives the default branch and README location;
+        # everything else is independent, so it is requested concurrently.
         repo_data = await self.fetch_repo()
-        latest_release_data = await self.fetch_latest_release()
-        readme = await self.fetch_readme(repo_data)
-        languages = await self.fetch_languages()
+        branch = repo_data.get("default_branch") or "main"
+        (
+            latest_release_data,
+            readme,
+            languages,
+            files,
+            branch_protected,
+            contributors,
+            closed_issues,
+            open_issues,
+        ) = await asyncio.gather(
+            self.fetch_latest_release(),
+            self.fetch_readme(repo_data),
+            self.fetch_languages(),
+            self.fetch_files(branch),
+            self.fetch_default_branch_protected(branch),
+            self.fetch_contributors(),
+            self.fetch_closed_issues(),
+            self.fetch_open_issues(),
+        )
 
         result: dict[str, Any] = {
             "repo": repo_data,
             "latest_release": latest_release_data,
             "readme": readme,
             "languages": languages,
+            "files": files,
+            "default_branch_protected": branch_protected,
+            "contributors": contributors,
+            "closed_issues": closed_issues,
+            "open_issues": open_issues,
         }
         return result
+
+    async def _get_pages(
+        self,
+        url: str,
+        what: str,
+        params: dict[str, Any] | None = None,
+        max_pages: int = MAX_PAGES,
+    ) -> list[Any] | None:
+        """GET up to ``max_pages`` pages of a list endpoint, or None."""
+        items: list[Any] = []
+        for page in range(1, max_pages + 1):
+            batch = await self._get_optional(
+                url, what, {**(params or {}), "per_page": PER_PAGE, "page": page}
+            )
+            if batch is None:
+                return items or None
+            items.extend(batch)
+            if len(batch) < PER_PAGE:
+                break
+        return items
+
+    async def fetch_files(self, branch: str) -> list[str] | None:
+        """
+        Fetch the paths of files on a branch.
+
+        Parameters
+        ----------
+        branch : str
+            Branch to list, usually the default branch.
+
+        Returns
+        -------
+        list[str] | None
+            File paths from GET /repository/tree?recursive=true, capped at
+            MAX_TREE_PAGES * PER_PAGE entries, or None if unavailable.
+        """
+        data = await self._get_pages(
+            f"{self.project_url}/repository/tree",
+            "file tree",
+            {"recursive": "true", "ref": branch},
+            max_pages=MAX_TREE_PAGES,
+        )
+        if data is None:
+            return None
+        return [item["path"] for item in data if item.get("type") == "blob"]
+
+    async def fetch_default_branch_protected(self, branch: str) -> bool | None:
+        """
+        Fetch whether a branch is protected.
+
+        Parameters
+        ----------
+        branch : str
+            Branch to check, usually the default branch.
+
+        Returns
+        -------
+        bool | None
+            The ``protected`` flag from GET /repository/branches/{branch}.
+        """
+        url = f"{self.project_url}/repository/branches/{quote(branch, safe='')}"
+        data = await self._get_optional(url, "branch")
+        return None if not isinstance(data, dict) else bool(data.get("protected"))
+
+    async def fetch_contributors(self) -> list[dict[str, Any]] | None:
+        """
+        Fetch contributors and their commit counts.
+
+        Returns
+        -------
+        list[dict] | None
+            ``{"name", "contributions"}`` per contributor, most active first,
+            capped at MAX_PAGES * PER_PAGE contributors.
+        """
+        data = await self._get_pages(
+            f"{self.project_url}/repository/contributors",
+            "contributors",
+            {"order_by": "commits", "sort": "desc"},
+        )
+        if data is None:
+            return None
+        return [
+            {"name": c.get("name"), "contributions": c.get("commits", 0)} for c in data
+        ]
+
+    async def fetch_closed_issues(self) -> list[dict[str, Any]] | None:
+        """
+        Fetch the most recently closed issues.
+
+        Returns
+        -------
+        list[dict] | None
+            ``{"created_at", "closed_at"}`` per issue, capped at
+            MAX_PAGES * PER_PAGE issues.
+        """
+        data = await self._get_pages(
+            f"{self.project_url}/issues",
+            "closed issues",
+            {"state": "closed", "order_by": "updated_at", "sort": "desc"},
+        )
+        if data is None:
+            return None
+        return [
+            {"created_at": i.get("created_at"), "closed_at": i.get("closed_at")}
+            for i in data
+        ]
+
+    async def fetch_open_issues(self) -> int | None:
+        """
+        Fetch the number of open issues.
+
+        Returns
+        -------
+        int | None
+            ``opened`` count from GET /issues_statistics, or None.
+        """
+        data = await self._get_optional(
+            f"{self.project_url}/issues_statistics", "issue statistics"
+        )
+        if not isinstance(data, dict):
+            return None
+        return int(data.get("statistics", {}).get("counts", {}).get("opened", 0))
 
     async def fetch_repo(self) -> dict[str, Any]:
         """
