@@ -25,6 +25,38 @@ repository URL. Re-run the evaluation without supplying previously saved
 assessment instead of running resqui again. If a resqui check fails, it can be
 absent from the saved data.
 
+## Batch evaluation from CSV
+
+From a source checkout, run evaluations sequentially for a CSV with
+`biotoolsID`, `homepage` (repository URL) and `dois` columns. Multiple DOIs
+are comma-separated. Use the executable from the environment containing the
+local resqui fork:
+
+```bash
+python scripts/evaluate_batch.py "results/bio.tools entries - github_gitlab_tools_with_publications.csv" \
+  --output-dir results/batch --executable ../QualityPipelines/.venv/bin/maturity-meter
+```
+
+Add `--dry-run` to list and validate entries without running evaluations or
+creating output. Ingested data is saved in `results/batch/raw/`, with CSV row
+numbers and bio.tools IDs in the filenames. No score files are saved. Existing
+data files are skipped and never overwritten; failed evaluations do not leave
+a data file to be mistaken for a completed run. Use a separate output directory
+for each CSV.
+
+GitHub links to releases, files or other paths inside a repository are skipped
+rather than assuming their enclosing repository is the correct one. Invalid or
+unsupported URLs and failed evaluations are reported, processing continues,
+and the script returns a nonzero exit status if any errors occurred. GitLab
+subgroup repository paths are supported. Individual evaluations may take
+several minutes and require network access and Docker.
+
+Create a spreadsheet from completed raw results with:
+
+```bash
+python scripts/metrics_report.py results/batch/raw/*.json -o results/batch/metrics.ods
+```
+
 ## Comparing reported metrics
 
 From a source checkout, create a LibreOffice Calc OpenDocument spreadsheet from one or more
