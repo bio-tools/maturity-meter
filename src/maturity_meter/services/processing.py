@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class MaturityResult(BaseModel):
     """Result returned by the evaluation service.
 
-    Parameters
+    Attributes
     ----------
     maturity : Evaluation
         Scores and metric results per dimension.
