@@ -17,6 +17,30 @@ The result is printed as JSON. `-o result.json` also saves it, and
 `--save-data data.json` saves the ingested data, which can be re-scored later
 without fetching anything: `--data data.json`.
 
+## Lineage
+
+To see which ingested data and helper functions (scaling, reconciliation, ...)
+each metric and dimension uses, trace them on saved data:
+
+```bash
+poetry run maturity-meter lineage data.json other-tool.json -o lineage.json
+```
+
+The lineage is traced by running the metrics, so it always matches the code.
+It only sees the code paths the data triggers; passing data from several tools
+merges their coverage.
+
+Add `--figure lineage.html` to draw it as a flow figure: ingested sources,
+the fields read from them, the metrics and the dimensions. Field-to-metric
+edges show the **scaling** applied, each metric shows its **reconciliation**
+(how it combines its sources), and metric-to-dimension edges show the
+**aggregation**. Use a `.mmd` file name to get the Mermaid source instead,
+e.g. to embed it in Markdown.
+
+Functions get their role from the `@role(...)` decorator in
+`maturity_meter.components.utils.roles` (`"scaling"`, `"reconciliation"` or
+`"aggregation"`); tag new helpers with it so they show up in the right place.
+
 ## Web API
 
 ```bash
