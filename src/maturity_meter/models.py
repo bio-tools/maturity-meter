@@ -343,6 +343,22 @@ class IngestedData:
         """
         path.write_text(self.to_json() + "\n")
 
+    @classmethod
+    def load(cls, path: Path) -> "IngestedData":
+        """Read data written by :meth:`save`.
+
+        Parameters
+        ----------
+        path : pathlib.Path
+            File to read.
+
+        Returns
+        -------
+        IngestedData
+            The saved request and sources.
+        """
+        return TypeAdapter(IngestedData).validate_json(path.read_text())
+
 
 class MetricResult(BaseModel):
     """Result of one metric within a maturity dimension.

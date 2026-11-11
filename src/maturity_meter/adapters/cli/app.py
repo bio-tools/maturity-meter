@@ -7,7 +7,7 @@ terminal formatting.
 
 import typer
 
-from maturity_meter.adapters.cli.commands import evaluate
+from maturity_meter.adapters.cli.commands import evaluate, lineage
 from maturity_meter.logging_config import configure_logging
 
 # The Typer app is the command registry. Add new commands by importing their
@@ -21,6 +21,7 @@ def root() -> None:
 
 
 app.command(name="evaluate")(evaluate.command)
+app.command(name="lineage")(lineage.command)
 
 
 def main() -> None:

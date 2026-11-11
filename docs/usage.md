@@ -89,6 +89,7 @@ stars, forks, open-issue and branch-protection fields, the scalar measurements
 in the OpenEBench metrics record, bio.tools publication citation counts, and
 OpenAlex citation counts and FWCI and Europe PMC citation counts and
 open-access fields. It does not treat arbitrary repository metadata as metrics.
+
 For publication metrics, each source and metric has one column per tool. Its
 cell contains a JSON list of reported values with DOI or PMID when available;
 OpenEBench publication results also retain list positions and any year or title.
@@ -99,6 +100,33 @@ no more specific definition is available.
 If a source reports multiple checks for the same indicator, their outputs,
 processes, statuses and evidence are retained together as a JSON list in one
 comparison cell.
+
+Publication metrics retain their DOI (or PMID) so that distinct works are not
+combined. OpenEBench list entries without a DOI or year are identified by their
+position, which may not represent the same item across different records.
+## Lineage
+
+To see which ingested data and helper functions (scaling, reconciliation, ...)
+each metric and dimension uses, trace them on saved data:
+
+```bash
+poetry run maturity-meter lineage data.json other-tool.json -o lineage.json
+```
+
+The lineage is traced by running the metrics, so it always matches the code.
+It only sees the code paths the data triggers; passing data from several tools
+merges their coverage.
+
+Add `--figure lineage.html` to draw it as a flow figure: ingested sources,
+the fields read from them, the metrics and the dimensions. Field-to-metric
+edges show the **scaling** applied, each metric shows its **reconciliation**
+(how it combines its sources), and metric-to-dimension edges show the
+**aggregation**. Use a `.mmd` file name to get the Mermaid source instead,
+e.g. to embed it in Markdown.
+
+Functions get their role from the `@role(...)` decorator in
+`maturity_meter.components.utils.roles` (`"scaling"`, `"reconciliation"` or
+`"aggregation"`); tag new helpers with it so they show up in the right place.
 
 ## Web API
 
