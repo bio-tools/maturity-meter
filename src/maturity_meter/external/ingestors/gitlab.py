@@ -184,17 +184,30 @@ class GitLabIngestor(Ingestor):
         -------
         list[str] | None
             File paths from GET /repository/tree?recursive=true, capped at
-            MAX_TREE_PAGES * PER_PAGE entries, or None if unavailable.
+            MAX_TREE_PAGES * PER_PAGE entries, always including the files in
+            the root directory, or None if unavailable.
         """
-        data = await self._get_pages(
-            f"{self.project_url}/repository/tree",
-            "file tree",
-            {"recursive": "true", "ref": branch},
-            max_pages=MAX_TREE_PAGES,
+        url = f"{self.project_url}/repository/tree"
+        # The recursive listing puts directories first, so on large projects
+        # the cap can cut off root files (manifests, licences, Dockerfiles,
+        # ...). Those matter most, so the root is also listed on its own.
+        recursive, root = await asyncio.gather(
+            self._get_pages(
+                url,
+                "file tree",
+                {"recursive": "true", "ref": branch},
+                max_pages=MAX_TREE_PAGES,
+            ),
+            self._get_pages(url, "root files", {"ref": branch}),
         )
-        if data is None:
+        if recursive is None and root is None:
             return None
-        return [item["path"] for item in data if item.get("type") == "blob"]
+        paths = [
+            item["path"]
+            for item in [*(root or []), *(recursive or [])]
+            if item.get("type") == "blob"
+        ]
+        return list(dict.fromkeys(paths))
 
     async def fetch_default_branch_protected(self, branch: str) -> bool | None:
         """
