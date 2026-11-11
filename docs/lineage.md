@@ -8,8 +8,13 @@ and which functions it applies:
 - **fields → metrics**: labelled with the **scaling** applied to the data;
 - **metrics**: show their **reconciliation** (how they combine several
   sources) in italics;
-- **metrics → dimensions**: labelled with the **aggregation** into the
-  dimension's score.
+- **dimensions**: show their **aggregation** (how they combine their metrics
+  into the dimension's score) in italics.
+
+Click any node to show only what it is connected to: for a metric, the fields
+and sources it reads and its dimension; for a source, every field, metric and
+dimension that depends on it. Click it again, or the background, to show
+everything.
 
 It is generated from the code itself: the metrics are run on synthetic
 *probe* data (`tests/fixtures/lineage`) that exercises every code path, and
