@@ -3,38 +3,21 @@
 Each function computes one metric from the ingested data and returns its
 :class:`MetricResult`. Verdicts are 1 (pass) or 0 (fail); when several sources
 check the same thing, they are combined with :func:`placeholder_reconcile`.
+``dependency_management`` is shared with the compatibility dimension.
 """
 
-from maturity_meter.components.utils.checks import has_any_file, resqui_verdict
-from maturity_meter.components.utils.scaling import placeholder_reconcile
+from maturity_meter.components.shared.metrics import dependency_management
+from maturity_meter.components.utils.checks import findings_note, resqui_verdict
 from maturity_meter.models import IngestedData, MetricResult
 
-# Configuration files of dependency update tools (Dependabot, Renovate).
-DEPENDENCY_UPDATE_FILES = (
-    ".github/dependabot.yml",
-    ".github/dependabot.yaml",
-    "renovate.json",
-    "renovate.json5",
-    ".renovaterc",
-    ".renovaterc.json",
-    ".github/renovate.json",
-    ".github/renovate.json5",
-    ".gitlab/renovate.json",
-)
+__all__ = [
+    "default_branch_protected",
+    "dependency_management",
+    "human_code_review_requirement",
+    "no_leaked_credentials",
+]
 
 _NO_RESQUI = "resqui did not check this (it needs Docker and a GitHub repository)."
-
-
-def _findings(findings: dict[str, float | None], yes: str, no: str) -> str:
-    """Name each source's verdict, so a disagreement (e.g. 0.5) is explained."""
-    return (
-        "; ".join(
-            f"{source}: {yes if verdict else no}"
-            for source, verdict in findings.items()
-            if verdict is not None
-        )
-        + "."
-    )
 
 
 def default_branch_protected(data: IngestedData) -> MetricResult:
@@ -89,7 +72,7 @@ def no_leaked_credentials(data: IngestedData) -> MetricResult:
     return MetricResult(
         name="no_leaked_credentials",
         value=verdict,
-        note=_findings({"Gitleaks": verdict}, "no leaks found", "leaks found"),
+        note=findings_note({"Gitleaks": verdict}, "no leaks found", "leaks found"),
         suggestions=[]
         if verdict
         else ["Remove the leaked secrets from the history and rotate them."],
@@ -118,49 +101,10 @@ def human_code_review_requirement(data: IngestedData) -> MetricResult:
     return MetricResult(
         name="human_code_review_requirement",
         value=verdict,
-        note=_findings(
+        note=findings_note(
             {"OpenSSF Scorecard": verdict}, "changes reviewed", "changes not reviewed"
         ),
         suggestions=[]
         if verdict
         else ["Require a review of pull/merge requests before merging."],
-    )
-
-
-def dependency_management(data: IngestedData) -> MetricResult:
-    """Whether dependencies are kept up to date by a tool.
-
-    Combines resqui's OpenSSF Scorecard check and a Dependabot or Renovate
-    configuration file in the repository with :func:`placeholder_reconcile`.
-
-    Parameters
-    ----------
-    data : IngestedData
-        Ingested data.
-
-    Returns
-    -------
-    MetricResult
-        1 if a dependency update tool is used, 0 if not, or ``value=None``
-        without a check or file list.
-    """
-    findings = {
-        "OpenSSF Scorecard": resqui_verdict(data, "dependency_management"),
-        "Dependabot/Renovate config": has_any_file(data, DEPENDENCY_UPDATE_FILES),
-    }
-    value = placeholder_reconcile(list(findings.values()))
-    if value is None:
-        return MetricResult(
-            name="dependency_management",
-            value=None,
-            note="No dependency check or file list available.",
-        )
-    return MetricResult(
-        name="dependency_management",
-        value=value,
-        note=_findings(findings, "found", "not found"),
-        # Only suggest one when no source found a tool.
-        suggestions=[]
-        if value > 0
-        else ["Configure a dependency update tool such as Dependabot or Renovate."],
     )

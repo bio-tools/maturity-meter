@@ -31,7 +31,7 @@ from typing import Any, cast
 from pydantic import BaseModel, Field
 
 from maturity_meter.components.utils.roles import ROLE_ATTRIBUTE
-from maturity_meter.models import Evaluation, IngestedData
+from maturity_meter.models import Evaluation, IngestedData, MetricResult
 
 COMPONENTS_PACKAGE = "maturity_meter.components"
 
@@ -140,9 +140,10 @@ class _RecordingDict(dict[str, Any]):
     """A dict that logs every read from it.
 
     Reading a key (``d[k]``, ``d.get(k)``) or testing for one (``k in d``)
-    logs ``path.k``. Iterating its keys, items or values logs ``path[*]``, so
-    per-DOI, per-IRI and per-item keys collapse to one entry. Taking its
-    length or truth value logs ``path`` itself.
+    logs ``path.k`` (or ``path[*]`` for identifier keys such as DOIs).
+    Iterating its keys, items or values logs ``path[*]``, so per-DOI,
+    per-IRI and per-item keys collapse to one entry. Taking its length or
+    truth value logs ``path`` itself.
     """
 
     def __init__(self, data: dict[str, Any], path: str, log: set[str]):
@@ -150,8 +151,20 @@ class _RecordingDict(dict[str, Any]):
         self._path = path
         self._log = log
 
+    def _key_path(self, key: object) -> str:
+        """Path of ``key``; identifier-like keys collapse to ``[*]``.
+
+        Keys containing ``/`` or ``:`` (DOIs, IRIs, URLs) identify one item of
+        a per-item mapping, so ``edam.get(iri)`` is recorded like iterating
+        ``edam``, not as one path per IRI.
+        """
+        text = str(key)
+        if "/" in text or ":" in text:
+            return f"{self._path}[*]"
+        return f"{self._path}.{text}"
+
     def _read(self, key: str) -> Any:
-        path = f"{self._path}.{key}"
+        path = self._key_path(key)
         self._log.add(path)
         return _wrap(super().__getitem__(key), path, self._log)
 
@@ -161,11 +174,11 @@ class _RecordingDict(dict[str, Any]):
     def get(self, key: str, default: Any = None) -> Any:
         if super().__contains__(key):
             return self._read(key)
-        self._log.add(f"{self._path}.{key}")
+        self._log.add(self._key_path(key))
         return default
 
     def __contains__(self, key: object) -> bool:
-        self._log.add(f"{self._path}.{key}")
+        self._log.add(self._key_path(key))
         return super().__contains__(key)
 
     def __iter__(self) -> Any:
@@ -276,14 +289,20 @@ def _optional_module(name: str) -> ModuleType | None:
 
 
 def _metric_functions(dimension: str) -> list[Callable[[IngestedData], Any]]:
-    """Public functions defined in a dimension's ``metrics`` module."""
+    """The metric functions in a dimension's ``metrics`` module.
+
+    A metric is any public function there that returns a
+    :class:`MetricResult`, including shared metrics imported from elsewhere;
+    helpers (which return other types) are left out.
+    """
     module = _optional_module(f"{COMPONENTS_PACKAGE}.{dimension}.metrics")
     if module is None:
         return []
     return [
         fn
         for name, fn in inspect.getmembers(module, inspect.isfunction)
-        if fn.__module__ == module.__name__ and not name.startswith("_")
+        if not name.startswith("_")
+        and inspect.signature(fn).return_annotation in (MetricResult, "MetricResult")
     ]
 
 

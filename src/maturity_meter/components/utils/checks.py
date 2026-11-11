@@ -63,3 +63,28 @@ def has_any_file(data: IngestedData, paths: Iterable[str]) -> float | None:
         return None
     wanted = {path.lower() for path in paths}
     return float(any(f.lower() in wanted for f in files))
+
+
+def findings_note(findings: dict[str, float | None], yes: str, no: str) -> str:
+    """A note naming each source's verdict, so a disagreement is explained.
+
+    Parameters
+    ----------
+    findings : dict[str, float | None]
+        Verdict per source (1 or 0); sources without a verdict are skipped.
+    yes, no : str
+        Wording for a positive and a negative verdict.
+
+    Returns
+    -------
+    str
+        E.g. ``"OpenSSF Scorecard: not found; Dependabot/Renovate config: found."``
+    """
+    return (
+        "; ".join(
+            f"{source}: {yes if verdict else no}"
+            for source, verdict in findings.items()
+            if verdict is not None
+        )
+        + "."
+    )
