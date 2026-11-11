@@ -42,6 +42,15 @@ The result is printed as JSON; add `-o result.json` to save it. Use
 `--save-data data.json` to save the fetched data, and `--data data.json` to
 re-score it later without fetching anything again.
 
+Compare reported metrics from saved data files in a LibreOffice Calc spreadsheet:
+
+```bash
+python scripts/metrics_report.py tool-a.json tool-b.json -o metrics.ods
+```
+
+See the [usage guide](docs/usage.md#comparing-reported-metrics) for included
+sources and report details.
+
 ## Functions
 
 <details>

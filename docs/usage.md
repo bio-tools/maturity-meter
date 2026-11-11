@@ -17,6 +17,39 @@ The result is printed as JSON. `-o result.json` also saves it, and
 `--save-data data.json` saves the ingested data, which can be re-scored later
 without fetching anything: `--data data.json`.
 
+The bundled resqui configuration includes the eight FAIR-Checker checks
+supported by the bio-tools QualityPipelines fork. They require that fork's
+`FAIRChecker` plugin and a running Docker daemon; FAIR-Checker evaluates the
+repository URL. Re-run the evaluation without supplying previously saved
+`quality_checks` to collect the new results: `--data` reuses a supplied
+assessment instead of running resqui again. If a resqui check fails, it can be
+absent from the saved data.
+
+## Comparing reported metrics
+
+From a source checkout, create a LibreOffice Calc OpenDocument spreadsheet from one or more
+saved ingestion files:
+
+```bash
+python scripts/metrics_report.py tool-a.json tool-b.json -o metrics.ods
+```
+
+The spreadsheet contains a metric-details sheet (column ID, source, identifier and
+expected range), and a comparison sheet with tools as rows and metric
+IDs as columns. A blank cell means that the input did not report a value; a
+blank range means it is not specified. Values are copied without calculating
+new metrics. Numeric and Boolean values remain typed spreadsheet cells; text
+values remain text. The comparison sheet may require horizontal scrolling.
+
+The report includes Lizard code metrics, resqui check outputs, GitHub/GitLab
+stars, forks, open-issue and branch-protection fields, the scalar measurements
+in the OpenEBench metrics record, bio.tools publication citation counts, and
+OpenAlex citation counts and FWCI and Europe PMC citation counts and
+open-access fields. It does not treat arbitrary repository metadata as metrics.
+Publication metrics retain their DOI (or PMID) so that distinct works are not
+combined. OpenEBench list entries without a DOI or year are identified by their
+position, which may not represent the same item across different records.
+
 ## Web API
 
 ```bash
