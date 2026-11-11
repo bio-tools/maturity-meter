@@ -205,6 +205,10 @@ def lineage_to_html(lineage: Lineage) -> str:
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Metric lineage</title>
 <script src="{MERMAID_SCRIPT}"></script>
+<script>
+// Embedded in another page (e.g. the docs): that page has the title and intro.
+if (window.self !== window.top) document.documentElement.classList.add("embedded");
+</script>
 <style>
   :root {{ color-scheme: light; --ink: #0f172a; --muted: #64748b; --rule: #e2e8f0; }}
   body {{ margin: 0; background: #f1f5f9; color: var(--ink);
@@ -232,6 +236,8 @@ def lineage_to_html(lineage: Lineage) -> str:
   .mermaid foreignObject {{ overflow: visible; }}
   footer {{ margin-top: 16px; font-size: 13px; color: var(--muted); }}
   footer ul {{ margin: 4px 0 0; padding-left: 18px; }}
+  .embedded h1, .embedded .lede, .embedded footer {{ display: none; }}
+  .embedded main {{ padding-top: 8px; }}
 </style>
 </head>
 <body>
