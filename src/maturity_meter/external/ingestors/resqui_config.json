@@ -5,6 +5,14 @@
     { "name": "has_license", "plugin": "HowFairIs", "@id": "https://w3id.org/everse/i/indicators/software_has_license" },
     { "name": "dependency_management", "plugin": "OpenSSFScorecard", "@id": "https://w3id.org/everse/i/indicators/dependency_management" },
     { "name": "has_ci_tests", "plugin": "OpenSSFScorecard", "@id": "https://w3id.org/everse/i/indicators/has_ci-tests" },
-    { "name": "human_code_review_requirement", "plugin": "OpenSSFScorecard", "@id": "https://w3id.org/everse/i/indicators/human_code_review_requirement" }
+    { "name": "human_code_review_requirement", "plugin": "OpenSSFScorecard", "@id": "https://w3id.org/everse/i/indicators/human_code_review_requirement" },
+    { "name": "unique_ids", "plugin": "FAIRChecker", "@id": "https://w3id.org/fair/principles/terms/F1A" },
+    { "name": "persistent_ids", "plugin": "FAIRChecker", "@id": "https://w3id.org/fair/principles/terms/F1B" },
+    { "name": "structured_metadata", "plugin": "FAIRChecker", "@id": "https://w3id.org/fair/principles/terms/F2A" },
+    { "name": "shared_vocabularies_for_metadata", "plugin": "FAIRChecker", "@id": "https://w3id.org/fair/principles/terms/F2B" },
+    { "name": "machine_readable_format", "plugin": "FAIRChecker", "@id": "https://w3id.org/fair/principles/terms/I1" },
+    { "name": "use_shared_ontologies", "plugin": "FAIRChecker", "@id": "https://w3id.org/fair/principles/terms/I2" },
+    { "name": "external_links", "plugin": "FAIRChecker", "@id": "https://w3id.org/fair/principles/terms/I3" },
+    { "name": "license_metadata", "plugin": "FAIRChecker", "@id": "https://w3id.org/fair/principles/terms/R11" }
   ]
 }

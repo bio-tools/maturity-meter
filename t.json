@@ -1,0 +1,1002 @@
+{
+  "request": {
+    "repository": "https://github.com/computproteomics/vsclust",
+    "dois": [],
+    "biotools_id": "vsclust",
+    "data": {
+      "repository": null,
+      "biotools": null,
+      "openebench": null,
+      "quality_checks": null,
+      "rsec": null,
+      "code_metrics": null,
+      "europe_pmc": {},
+      "openalex": {},
+      "edam": {}
+    }
+  },
+  "repository": {
+    "repo": {
+      "id": 515173877,
+      "node_id": "R_kgDOHrTt9Q",
+      "name": "vsclust",
+      "full_name": "computproteomics/vsclust",
+      "private": false,
+      "owner": {
+        "login": "computproteomics",
+        "id": 158178001,
+        "node_id": "O_kgDOCW2a0Q",
+        "avatar_url": "https://avatars.githubusercontent.com/u/158178001?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/computproteomics",
+        "html_url": "https://github.com/computproteomics",
+        "followers_url": "https://api.github.com/users/computproteomics/followers",
+        "following_url": "https://api.github.com/users/computproteomics/following{/other_user}",
+        "gists_url": "https://api.github.com/users/computproteomics/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/computproteomics/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/computproteomics/subscriptions",
+        "organizations_url": "https://api.github.com/users/computproteomics/orgs",
+        "repos_url": "https://api.github.com/users/computproteomics/repos",
+        "events_url": "https://api.github.com/users/computproteomics/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/computproteomics/received_events",
+        "type": "Organization",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "html_url": "https://github.com/computproteomics/vsclust",
+      "description": "Feature-based variance-sensitive clustering of omics data. Optimizes cluster assignment by taking into account individual feature variance.",
+      "fork": false,
+      "url": "https://api.github.com/repos/computproteomics/vsclust",
+      "forks_url": "https://api.github.com/repos/computproteomics/vsclust/forks",
+      "keys_url": "https://api.github.com/repos/computproteomics/vsclust/keys{/key_id}",
+      "collaborators_url": "https://api.github.com/repos/computproteomics/vsclust/collaborators{/collaborator}",
+      "teams_url": "https://api.github.com/repos/computproteomics/vsclust/teams",
+      "hooks_url": "https://api.github.com/repos/computproteomics/vsclust/hooks",
+      "issue_events_url": "https://api.github.com/repos/computproteomics/vsclust/issues/events{/number}",
+      "events_url": "https://api.github.com/repos/computproteomics/vsclust/events",
+      "assignees_url": "https://api.github.com/repos/computproteomics/vsclust/assignees{/user}",
+      "branches_url": "https://api.github.com/repos/computproteomics/vsclust/branches{/branch}",
+      "tags_url": "https://api.github.com/repos/computproteomics/vsclust/tags",
+      "blobs_url": "https://api.github.com/repos/computproteomics/vsclust/git/blobs{/sha}",
+      "git_tags_url": "https://api.github.com/repos/computproteomics/vsclust/git/tags{/sha}",
+      "git_refs_url": "https://api.github.com/repos/computproteomics/vsclust/git/refs{/sha}",
+      "trees_url": "https://api.github.com/repos/computproteomics/vsclust/git/trees{/sha}",
+      "statuses_url": "https://api.github.com/repos/computproteomics/vsclust/statuses/{sha}",
+      "languages_url": "https://api.github.com/repos/computproteomics/vsclust/languages",
+      "stargazers_url": "https://api.github.com/repos/computproteomics/vsclust/stargazers",
+      "contributors_url": "https://api.github.com/repos/computproteomics/vsclust/contributors",
+      "subscribers_url": "https://api.github.com/repos/computproteomics/vsclust/subscribers",
+      "subscription_url": "https://api.github.com/repos/computproteomics/vsclust/subscription",
+      "commits_url": "https://api.github.com/repos/computproteomics/vsclust/commits{/sha}",
+      "git_commits_url": "https://api.github.com/repos/computproteomics/vsclust/git/commits{/sha}",
+      "comments_url": "https://api.github.com/repos/computproteomics/vsclust/comments{/number}",
+      "issue_comment_url": "https://api.github.com/repos/computproteomics/vsclust/issues/comments{/number}",
+      "contents_url": "https://api.github.com/repos/computproteomics/vsclust/contents/{+path}",
+      "compare_url": "https://api.github.com/repos/computproteomics/vsclust/compare/{base}...{head}",
+      "merges_url": "https://api.github.com/repos/computproteomics/vsclust/merges",
+      "archive_url": "https://api.github.com/repos/computproteomics/vsclust/{archive_format}{/ref}",
+      "downloads_url": "https://api.github.com/repos/computproteomics/vsclust/downloads",
+      "issues_url": "https://api.github.com/repos/computproteomics/vsclust/issues{/number}",
+      "pulls_url": "https://api.github.com/repos/computproteomics/vsclust/pulls{/number}",
+      "milestones_url": "https://api.github.com/repos/computproteomics/vsclust/milestones{/number}",
+      "notifications_url": "https://api.github.com/repos/computproteomics/vsclust/notifications{?since,all,participating}",
+      "labels_url": "https://api.github.com/repos/computproteomics/vsclust/labels{/name}",
+      "releases_url": "https://api.github.com/repos/computproteomics/vsclust/releases{/id}",
+      "deployments_url": "https://api.github.com/repos/computproteomics/vsclust/deployments",
+      "created_at": "2022-07-18T12:25:54Z",
+      "updated_at": "2026-07-24T11:37:54Z",
+      "pushed_at": "2026-07-24T11:37:27Z",
+      "git_url": "git://github.com/computproteomics/vsclust.git",
+      "ssh_url": "git@github.com:computproteomics/vsclust.git",
+      "clone_url": "https://github.com/computproteomics/vsclust.git",
+      "svn_url": "https://github.com/computproteomics/vsclust",
+      "homepage": "",
+      "size": 47653,
+      "stargazers_count": 0,
+      "watchers_count": 0,
+      "language": "R",
+      "has_issues": true,
+      "has_projects": true,
+      "has_downloads": false,
+      "has_wiki": true,
+      "has_pages": false,
+      "has_discussions": false,
+      "forks_count": 1,
+      "mirror_url": null,
+      "archived": false,
+      "disabled": false,
+      "open_issues_count": 0,
+      "license": {
+        "key": "gpl-2.0",
+        "name": "GNU General Public License v2.0",
+        "spdx_id": "GPL-2.0",
+        "url": "https://api.github.com/licenses/gpl-2.0",
+        "node_id": "MDc6TGljZW5zZTg="
+      },
+      "allow_forking": true,
+      "is_template": false,
+      "web_commit_signoff_required": false,
+      "has_pull_requests": true,
+      "pull_request_creation_policy": "all",
+      "topics": [],
+      "visibility": "public",
+      "forks": 1,
+      "open_issues": 0,
+      "watchers": 0,
+      "default_branch": "devel",
+      "permissions": {
+        "admin": false,
+        "maintain": false,
+        "push": false,
+        "triage": false,
+        "pull": true
+      },
+      "temp_clone_token": "",
+      "custom_properties": {},
+      "organization": {
+        "login": "computproteomics",
+        "id": 158178001,
+        "node_id": "O_kgDOCW2a0Q",
+        "avatar_url": "https://avatars.githubusercontent.com/u/158178001?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/computproteomics",
+        "html_url": "https://github.com/computproteomics",
+        "followers_url": "https://api.github.com/users/computproteomics/followers",
+        "following_url": "https://api.github.com/users/computproteomics/following{/other_user}",
+        "gists_url": "https://api.github.com/users/computproteomics/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/computproteomics/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/computproteomics/subscriptions",
+        "organizations_url": "https://api.github.com/users/computproteomics/orgs",
+        "repos_url": "https://api.github.com/users/computproteomics/repos",
+        "events_url": "https://api.github.com/users/computproteomics/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/computproteomics/received_events",
+        "type": "Organization",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "network_count": 1,
+      "subscribers_count": 1
+    },
+    "latest_release": {
+      "url": "https://api.github.com/repos/computproteomics/vsclust/releases/82697245",
+      "assets_url": "https://api.github.com/repos/computproteomics/vsclust/releases/82697245/assets",
+      "upload_url": "https://uploads.github.com/repos/computproteomics/vsclust/releases/82697245/assets{?name,label}",
+      "html_url": "https://github.com/computproteomics/vsclust/releases/tag/bioconductor-3.16",
+      "id": 82697245,
+      "author": {
+        "login": "veitveit",
+        "id": 15800709,
+        "node_id": "MDQ6VXNlcjE1ODAwNzA5",
+        "avatar_url": "https://avatars.githubusercontent.com/u/15800709?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/veitveit",
+        "html_url": "https://github.com/veitveit",
+        "followers_url": "https://api.github.com/users/veitveit/followers",
+        "following_url": "https://api.github.com/users/veitveit/following{/other_user}",
+        "gists_url": "https://api.github.com/users/veitveit/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/veitveit/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/veitveit/subscriptions",
+        "organizations_url": "https://api.github.com/users/veitveit/orgs",
+        "repos_url": "https://api.github.com/users/veitveit/repos",
+        "events_url": "https://api.github.com/users/veitveit/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/veitveit/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "node_id": "RE_kwDOHrTt9c4E7dwd",
+      "tag_name": "bioconductor-3.16",
+      "target_commitish": "master",
+      "name": "Bioconductor release",
+      "draft": false,
+      "immutable": false,
+      "prerelease": false,
+      "created_at": "2022-10-12T15:04:11Z",
+      "updated_at": "2022-11-10T15:34:50Z",
+      "published_at": "2022-11-10T15:34:50Z",
+      "assets": [],
+      "tarball_url": "https://api.github.com/repos/computproteomics/vsclust/tarball/bioconductor-3.16",
+      "zipball_url": "https://api.github.com/repos/computproteomics/vsclust/zipball/bioconductor-3.16",
+      "body": ""
+    },
+    "github_pages": null,
+    "readme": "[![bio.tools](https://img.shields.io/badge/bio.tools-vsclust-005472)](https://bio.tools/vsclust)\n\n# Variance-sensitive clustering of omics data\n\nFeature-based variance-sensitive clustering of omics data. Optimizes cluster assignment by taking into account individual feature variance.\n\nVSClust is available as interactive and user-friendly Shiny webservice and as R package in Bioconductor. For more instructions on both, see below.\n\nVSClust was developed at the\n\n[Protein Research Group](http://www.sdu.dk/en/Om_SDU/Institutter_centre/Bmb_biokemi_og_molekylaer_biologi/Forskning/Forskningsgrupper/Protein.aspx)  \nDepartment of Biochemistry and Molecular Biology  \n[University of Southern Denmark](http://www.sdu.dk)  \n\n## Citation\nWhen using VSClust, please cite our paper:  \nVeit Schwämmle, Ole N Jensen; VSClust: Feature-based variance-sensitive clustering of omics data, Bioinformatics, bty224, https://doi.org/10.1093/bioinformatics/bty224\n\n## Shiny app\n\n### Web service\n\nYou can use the implementation on our web server http://computproteomics.bmb.sdu.dk:  \nhttp://computproteomics.bmb.sdu.dk/Apps/VSClust\n\nBe aware that the tool does allow only one user to run the background R calculations at a time. Therefore the app might become temporarily irresponsive. However, multiple sessions are separated and your data won't be shared between sessions or overwritten. \n\n### Local implementation\n\n#### Docker\nThe easiest option is to use the docker image:\n\n```\ndocker pull veitveit/vsclust\ndocker run -t -i -p 3838:3838 veitveit/vsclust\n```\n\nand access the server through http://localhost:3838\n\n#### Bioconda\nInstall the package in the command-line\n```\nconda install -c bioconda vsclust\nrun_vsclust_app.sh\n```\nand access the shiny app through http://localhost:3838\n\n#### Manual installation\nInstall the Bioconductor package `vsclust`\nIn R:\n```\nif (!require(\"BiocManager\", quietly = TRUE))\n    install.packages(\"BiocManager\")\n\nBiocManager::install(\"vsclust\")\n```\n\nYou can run the shiny app from the server.R or ui.R files in the \"inst/shiny\" folder using [Rstudio](http://rstudio.com) or run the app on a [shiny-server](https://www.rstudio.com/products/shiny/shiny-server/)\n\nBe aware that you need to have all files, the R libraries described in Installation *and* the modified e1071 library installed.\n\n\n### Build and use Docker image\nA Dockerfile has been created on top of the rocker/shiny docker image. Copy this repository to a folder and carry out the following command to build the image (takes a while)\n\n`docker build -t veitveit/vsclust .`\n\nYou can also just directly download and run the image by\n\n`docker run -t -i -p 3838:3838 veitveit/vsclust`\n\nand access the server through http://localhost:3838\n\n## Command line and R package\n\nAll operations but the gene set enrichment can be performed via command line running the R script `runVSClust.R`\nor using the functions of the Bioconductor package `vsclust`\n\n### Installation\n\n#### In R: \n```\nif (!require(\"BiocManager\", quietly = TRUE))\n    install.packages(\"BiocManager\")\n\nBiocManager::install(\"vsclust\")\n```\n\n### As conda package\nTBD\n\n### Usage\n\nPlease take a look at the vignettes and/or in the help packages of the `vsclust` functions\n\n## Contact\nFor software issues and general questions, please submit an issue.\n\n## License\nGPL-2 or higher\n",
+    "languages": {
+      "R": 144645,
+      "C++": 24033,
+      "Dockerfile": 1435,
+      "JavaScript": 1233
+    },
+    "files": [
+      ".Rbuildignore",
+      ".github/workflows/R-CMD-check.yaml",
+      ".github/workflows/docker-image.yml",
+      ".github/workflows/docker-image.yml~",
+      ".github/workflows/test-coverage.yaml",
+      ".gitignore",
+      "DESCRIPTION",
+      "LICENSE",
+      "Meta/vignette.rds",
+      "NAMESPACE",
+      "NEWS",
+      "R/EvaluateClustering.R",
+      "R/PrepareData.R",
+      "R/RcppExports.R",
+      "R/RunClustering.R",
+      "R/Utilities.R",
+      "R/WrapperFuncs.R",
+      "R/artificial_clusters.R",
+      "R/protein_expression.R",
+      "README.md",
+      "bitbucket-pipelines.yml",
+      "data-raw/ArtData.csv",
+      "data-raw/DATASET.R",
+      "data-raw/ProtExample.csv",
+      "data/artificial_clusters.rda",
+      "data/protein_expressions.rda",
+      "doc/Integrate_With_Bioconductor_Objects.R",
+      "doc/Integrate_With_Bioconductor_Objects.Rmd",
+      "doc/Integrate_With_Bioconductor_Objects.html",
+      "doc/Run_VSClust_Workflow.R",
+      "doc/Run_VSClust_Workflow.Rmd",
+      "doc/Run_VSClust_Workflow.html",
+      "inst/README.md",
+      "inst/cmdline/runVSClust.R",
+      "inst/cmdline/run_vsclust_app.R",
+      "inst/docker/Dockerfile",
+      "inst/extdata/ArtData.csv",
+      "inst/extdata/ProtExample.csv",
+      "inst/extdata/vsclust.yml",
+      "inst/other/FcmClustPEst.R",
+      "inst/other/runvsclust_algorithm.R",
+      "inst/shiny/ArtData.csv",
+      "inst/shiny/server.R",
+      "inst/shiny/ui.R",
+      "inst/shiny/www/ExchangeData.js",
+      "inst/shiny/www/Logo.svg",
+      "inst/shiny/www/colormap.png",
+      "inst/shiny/www/spinner.gif",
+      "man/ClustComp.Rd",
+      "man/PrepareForVSClust.Rd",
+      "man/PrepareSEForVSClust.Rd",
+      "man/SignAnalysis.Rd",
+      "man/SignAnalysisPaired.Rd",
+      "man/SwitchOrder.Rd",
+      "man/artificial_clusters.Rd",
+      "man/averageCond.Rd",
+      "man/calcBHI.Rd",
+      "man/cvalidate.xiebeni.Rd",
+      "man/determine_fuzz.Rd",
+      "man/enrichSTRING_API.Rd",
+      "man/estimClust.plot.Rd",
+      "man/estimClustNum.Rd",
+      "man/mfuzz.plot.Rd",
+      "man/optimalClustNum.Rd",
+      "man/pcaWithVar.Rd",
+      "man/protein_expressions.Rd",
+      "man/runClustWrapper.Rd",
+      "man/runFuncEnrich.Rd",
+      "man/runVSClustApp.Rd",
+      "man/vsclust-package.Rd",
+      "man/vsclust_algorithm.Rd",
+      "src/RcppExports.cpp",
+      "src/vsclust_algo.cpp",
+      "tests/testthat.R",
+      "tests/testthat/test-HelperFuncs.R",
+      "tests/testthat/test-enrichSTRING_API.R",
+      "vignettes/Integrate_With_Bioconductor_Objects.Rmd",
+      "vignettes/Run_VSClust_Workflow.Rmd",
+      "vsclust.Rproj"
+    ],
+    "default_branch_protected": false,
+    "contributors": [
+      {
+        "name": "veitveit",
+        "contributions": 289
+      },
+      {
+        "name": "jwokaty",
+        "contributions": 16
+      },
+      {
+        "name": "Copilot",
+        "contributions": 5
+      },
+      {
+        "name": "JeppeHallgren",
+        "contributions": 1
+      },
+      {
+        "name": "lshep",
+        "contributions": 1
+      }
+    ],
+    "closed_issues": [
+      {
+        "created_at": "2023-05-11T08:39:15Z",
+        "closed_at": "2023-05-12T15:20:29Z"
+      }
+    ],
+    "open_issues": 0
+  },
+  "biotools": {
+    "name": "VSClust",
+    "description": "Feature-based variance-sensitive clustering of omics data. Optimizes cluster assignment by taking into account individual feature variance .",
+    "homepage": "http://computproteomics.bmb.sdu.dk/app_direct/VSClust/",
+    "biotoolsID": "vsclust",
+    "biotoolsCURIE": "biotools:vsclust",
+    "version": [],
+    "otherID": [],
+    "relation": [],
+    "function": [
+      {
+        "operation": [
+          {
+            "uri": "http://edamontology.org/operation_0533",
+            "term": "Expression profile pathway mapping"
+          },
+          {
+            "uri": "http://edamontology.org/operation_0313",
+            "term": "Expression profile clustering"
+          },
+          {
+            "uri": "http://edamontology.org/operation_3664",
+            "term": "Statistical modelling"
+          },
+          {
+            "uri": "http://edamontology.org/operation_3960",
+            "term": "Principal component analysis"
+          }
+        ],
+        "input": [
+          {
+            "data": {
+              "uri": "http://edamontology.org/data_2603",
+              "term": "Expression data"
+            },
+            "format": [
+              {
+                "uri": "http://edamontology.org/format_3752",
+                "term": "CSV"
+              }
+            ]
+          }
+        ],
+        "output": [
+          {
+            "data": {
+              "uri": "http://edamontology.org/data_3768",
+              "term": "Clustered expression profiles"
+            },
+            "format": [
+              {
+                "uri": "http://edamontology.org/format_3752",
+                "term": "CSV"
+              }
+            ]
+          },
+          {
+            "data": {
+              "uri": "http://edamontology.org/data_3932",
+              "term": "Q-value"
+            },
+            "format": [
+              {
+                "uri": "http://edamontology.org/format_3752",
+                "term": "CSV"
+              }
+            ]
+          }
+        ],
+        "note": null,
+        "cmd": null
+      }
+    ],
+    "toolType": [
+      "Command-line tool",
+      "Web service"
+    ],
+    "topic": [
+      {
+        "uri": "http://edamontology.org/topic_0622",
+        "term": "Genomics"
+      },
+      {
+        "uri": "http://edamontology.org/topic_0121",
+        "term": "Proteomics"
+      },
+      {
+        "uri": "http://edamontology.org/topic_3391",
+        "term": "Omics"
+      },
+      {
+        "uri": "http://edamontology.org/topic_3172",
+        "term": "Metabolomics"
+      },
+      {
+        "uri": "http://edamontology.org/topic_2269",
+        "term": "Statistics and probability"
+      },
+      {
+        "uri": "http://edamontology.org/topic_3473",
+        "term": "Data mining"
+      }
+    ],
+    "operatingSystem": [
+      "Windows",
+      "Mac",
+      "Linux"
+    ],
+    "language": [
+      "R"
+    ],
+    "license": "GPL-2.0",
+    "collectionID": [
+      "Proteomics"
+    ],
+    "maturity": null,
+    "cost": "Free of charge",
+    "accessibility": "Open access",
+    "elixirPlatform": [],
+    "elixirNode": [],
+    "elixirCommunity": [],
+    "link": [
+      {
+        "url": "https://bitbucket.org/veitveit/vsclust/src/master/",
+        "type": [
+          "Repository"
+        ],
+        "note": null
+      }
+    ],
+    "download": [],
+    "documentation": [
+      {
+        "url": "https://bitbucket.org/veitveit/vsclust",
+        "type": [
+          "General"
+        ],
+        "note": null
+      }
+    ],
+    "publication": [
+      {
+        "doi": "10.1093/bioinformatics/bty224",
+        "pmid": "29635359",
+        "pmcid": null,
+        "type": [
+          "Primary"
+        ],
+        "version": null,
+        "note": null,
+        "metadata": {
+          "title": "VSClust: Feature-based variance-sensitive clustering of omics data",
+          "abstract": "",
+          "date": "2018-09-01T00:00:00Z",
+          "citationCount": 27,
+          "authors": [],
+          "journal": "Bioinformatics"
+        }
+      }
+    ],
+    "credit": [
+      {
+        "name": "Veit Schwämmle",
+        "email": "veits@bmb.sdu.dk",
+        "url": null,
+        "orcidid": null,
+        "gridid": null,
+        "rorid": null,
+        "fundrefid": null,
+        "typeEntity": "Person",
+        "typeRole": [
+          "Primary contact"
+        ],
+        "note": null
+      }
+    ],
+    "owner": "veits@bmb.sdu.dk",
+    "additionDate": "2018-06-02T07:03:53Z",
+    "lastUpdate": "2025-11-08T12:32:14.933981Z",
+    "editPermission": {
+      "type": "private",
+      "authors": []
+    },
+    "validated": 1,
+    "homepage_status": 0,
+    "elixir_badge": 0,
+    "confidence_flag": "tool"
+  },
+  "openebench": {
+    "tool": {
+      "@timestamp": "2022-02-05T02:51:01.077406Z",
+      "alt_ids": [],
+      "contacts": [
+        {
+          "email": "veits@bmb.sdu.dk",
+          "name": "Veit Schwämmle"
+        }
+      ],
+      "credits": [
+        {
+          "email": "veits@bmb.sdu.dk",
+          "name": "Veit Schwämmle",
+          "type": "Person"
+        }
+      ],
+      "description": "Feature-based variance-sensitive clustering of omics data.",
+      "documentation": {
+        "doc_links": [],
+        "general": "https://bitbucket.org/veitveit/vsclust"
+      },
+      "languages": [
+        "R"
+      ],
+      "name": "VSClust",
+      "os": [
+        "Linux",
+        "Mac"
+      ],
+      "publications": [
+        {
+          "doi": "10.1093/bioinformatics/bty224"
+        }
+      ],
+      "repositories": [],
+      "semantics": {
+        "inputs": [],
+        "operations": [
+          "http://edamontology.org/operation_3459"
+        ],
+        "outputs": [],
+        "topics": [
+          "http://edamontology.org/topic_0622",
+          "http://edamontology.org/topic_0199",
+          "http://edamontology.org/topic_3511"
+        ]
+      },
+      "tags": [],
+      "web": {
+        "homepage": "https://bitbucket.org/veitveit/vsclust"
+      },
+      "xid": "VSClust",
+      "deprecated": true,
+      "@id": "https://openebench.bsc.es/monitor/tool/biotools:vsclust/cmd/bitbucket.org",
+      "@nmsp": "biotools",
+      "@type": "cmd",
+      "@label": "vsclust",
+      "@version": null,
+      "@license": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    "metrics": {
+      "project": {
+        "build": {},
+        "deployment": {},
+        "publications": [
+          {
+            "entries": [
+              {
+                "title": "VSClust: feature-based variance-sensitive clustering of omics data.",
+                "year": 2018,
+                "ref_count": 0,
+                "cit_count": 21,
+                "refs": [],
+                "citations": [
+                  {
+                    "count": 3,
+                    "year": 2019
+                  },
+                  {
+                    "count": 3,
+                    "year": 2020
+                  },
+                  {
+                    "count": 3,
+                    "year": 2021
+                  },
+                  {
+                    "count": 2,
+                    "year": 2022
+                  },
+                  {
+                    "count": 2,
+                    "year": 2023
+                  },
+                  {
+                    "count": 2,
+                    "year": 2024
+                  },
+                  {
+                    "count": 3,
+                    "year": 2025
+                  },
+                  {
+                    "count": 3,
+                    "year": 2026
+                  }
+                ],
+                "doi": "10.1093/bioinformatics/bty224",
+                "pmid": "29635359"
+              }
+            ]
+          }
+        ],
+        "summary": {
+          "description": true
+        },
+        "website": {
+          "access_time": 478,
+          "bioschemas": false,
+          "last_check": "2026-08-31T07:50:42.943138879Z",
+          "operational": 200,
+          "ssl": true,
+          "copyright": false,
+          "license": false,
+          "https": true,
+          "last_month_access": {
+            "average_access_time": 502,
+            "downtime_days": 0,
+            "uptime_days": 30
+          },
+          "half_year_stat": [
+            {
+              "days": 183,
+              "serie": [
+                183
+              ],
+              "status": 200
+            }
+          ],
+          "ssl_err": null
+        },
+        "documentation": {
+          "general": true
+        },
+        "readme": false
+      },
+      "support": {
+        "email": true,
+        "issue_tracking": {
+          "public_tracker": true,
+          "resolve_time": "PT1604585S"
+        }
+      },
+      "@timestamp": "2026-10-24T12:10:17.065804315Z",
+      "distribution": {
+        "sourcecode": {
+          "interpreted": true,
+          "free": true,
+          "license": null,
+          "public": true,
+          "readme": false,
+          "repository": {
+            "anonymous": true,
+            "online": true
+          }
+        },
+        "binaries": {
+          "freeness": null,
+          "registration": null
+        },
+        "packages": null,
+        "source_packages": true
+      },
+      "deprecated": true,
+      "@id": "https://openebench.bsc.es/monitor/metrics/biotools:vsclust/cmd/bitbucket.org",
+      "@nmsp": "biotools",
+      "@type": "metrics",
+      "@license": "https://creativecommons.org/licenses/by/4.0/"
+    }
+  },
+  "quality_checks": {
+    "@context": "https://w3id.org/everse/rsqa/0.0.3",
+    "@type": "SoftwareQualityAssessment",
+    "assessedSoftware": {
+      "@type": "schema:SoftwareApplication",
+      "name": "vsclust",
+      "softwareVersion": "bioconductor-3.16-119-ge0b4c03",
+      "url": "https://github.com/computproteomics/vsclust"
+    },
+    "checks": [
+      {
+        "@type": "CheckResult",
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/software_has_citation"
+        },
+        "checkingSoftware": {
+          "@id": "https://w3id.org/everse/tools/cffconvert",
+          "@type": "schema:SoftwareApplication",
+          "name": "CFFConvert",
+          "version": "2.0.0"
+        },
+        "evidence": "No valid CITATION.cff file found in repository root.",
+        "output": "false",
+        "process": "Searches for a 'CITATION.cff' file in the repository root and validates its syntax.",
+        "status": {
+          "@id": "schema:CompletedActionStatus"
+        }
+      },
+      {
+        "@type": "CheckResult",
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/no_leaked_credentials"
+        },
+        "checkingSoftware": {
+          "@id": "https://w3id.org/everse/tools/gitleaks",
+          "@type": "schema:SoftwareApplication",
+          "name": "GitLeaks",
+          "version": "8.24.2"
+        },
+        "evidence": "Leaks have been found.",
+        "output": "false",
+        "process": "Searches for security leaks in the full repository history.",
+        "status": {
+          "@id": "schema:CompletedActionStatus"
+        }
+      },
+      {
+        "@type": "CheckResult",
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/software_has_license"
+        },
+        "checkingSoftware": {
+          "@id": "https://w3id.org/everse/tools/howfairis",
+          "@type": "schema:SoftwareApplication",
+          "name": "HowFairIs",
+          "version": "0.15.0"
+        },
+        "evidence": "Found license file: 'LICENSE'.",
+        "output": "true",
+        "process": "Searches for a file named 'LICENSE' or 'LICENSE.md' in the repository root.",
+        "status": {
+          "@id": "schema:CompletedActionStatus"
+        }
+      },
+      {
+        "@type": "CheckResult",
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/dependency_management"
+        },
+        "checkingSoftware": {
+          "@id": "https://github.com/ossf/scorecard",
+          "@type": "schema:SoftwareApplication",
+          "name": "OpenSSF Scorecard",
+          "version": "v5.6.0"
+        },
+        "evidence": "Warn: no dependency update tool configurations found",
+        "output": "false",
+        "process": "Checks if there is a dependency update tool in the repository",
+        "status": {
+          "@id": "schema:CompletedActionStatus"
+        }
+      },
+      {
+        "@type": "CheckResult",
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/has_ci-tests"
+        },
+        "checkingSoftware": {
+          "@id": "https://github.com/ossf/scorecard",
+          "@type": "schema:SoftwareApplication",
+          "name": "OpenSSF Scorecard",
+          "version": "v5.6.0"
+        },
+        "evidence": "5 out of 5 merged PRs checked by a CI test -- score normalized to 10",
+        "output": "true",
+        "process": "Checks if there are PRs checked by CI-Tests",
+        "status": {
+          "@id": "schema:CompletedActionStatus"
+        }
+      },
+      {
+        "@type": "CheckResult",
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/human_code_review_requirement"
+        },
+        "checkingSoftware": {
+          "@id": "https://github.com/ossf/scorecard",
+          "@type": "schema:SoftwareApplication",
+          "name": "OpenSSF Scorecard",
+          "version": "v5.6.0"
+        },
+        "evidence": "Found 0/9 approved changesets -- score normalized to 0",
+        "output": "false",
+        "process": "Checks if at least half of the changesets in the repository are approved",
+        "status": {
+          "@id": "schema:CompletedActionStatus"
+        }
+      },
+      {
+        "@type": "CheckResult",
+        "assessesIndicator": {
+          "@id": "https://w3id.org/fair/principles/terms/F1A"
+        },
+        "checkingSoftware": {
+          "@id": "https://w3id.org/everse/tools/fair-checker",
+          "@type": "schema:SoftwareApplication",
+          "name": "FAIRChecker",
+          "version": "0.1.0"
+        },
+        "evidence": "FAIR-Checker test F1A (Unique IDs) returned score 2 for target https://github.com/computproteomics/vsclust. Test description: FAIRChecker checks that the resource identifier is a reachable URL. It's better if the URL is persistent (WebID, PURL or DOI). Evaluated at 2026-11-11T08:50:21.677158.",
+        "output": "true",
+        "process": "FAIR-Checker evaluates the repository against FAIR principles with test F1A 'Unique IDs'.",
+        "raw_value": "2",
+        "status": {
+          "@id": "schema:CompletedActionStatus"
+        }
+      },
+      {
+        "@type": "CheckResult",
+        "assessesIndicator": {
+          "@id": "https://w3id.org/fair/principles/terms/F1B"
+        },
+        "checkingSoftware": {
+          "@id": "https://w3id.org/everse/tools/fair-checker",
+          "@type": "schema:SoftwareApplication",
+          "name": "FAIRChecker",
+          "version": "0.1.0"
+        },
+        "evidence": "FAIR-Checker test F1B (Persistent IDs) returned score 0 for target https://github.com/computproteomics/vsclust. Test description: Weak : FAIR-Checker verifies that at least one namespace from identifiers.org is used in metadata.<br> Strong : FAIR-Checker verifies that the  “identifier” property from DCTerms or Schema.org vocabularies is present in metadata. Evaluated at 2026-11-11T08:50:21.697574.",
+        "output": "false",
+        "process": "FAIR-Checker evaluates the repository against FAIR principles with test F1B 'Persistent IDs'.",
+        "raw_value": "0",
+        "status": {
+          "@id": "schema:CompletedActionStatus"
+        }
+      },
+      {
+        "@type": "CheckResult",
+        "assessesIndicator": {
+          "@id": "https://w3id.org/fair/principles/terms/F2A"
+        },
+        "checkingSoftware": {
+          "@id": "https://w3id.org/everse/tools/fair-checker",
+          "@type": "schema:SoftwareApplication",
+          "name": "FAIRChecker",
+          "version": "0.1.0"
+        },
+        "evidence": "FAIR-Checker test F2A (Structured metadata) returned score 0 for target https://github.com/computproteomics/vsclust. Test description: Weak: FAIR-Checker verifies that at least one RDF triple can be found in metadata.<br> Strong: it searches for at least one property in dct:title dct:description dct:accessURL dct:downloadURL dcat:endpointURL dcat:endpointDescription. Evaluated at 2026-11-11T08:50:21.705950.",
+        "output": "false",
+        "process": "FAIR-Checker evaluates the repository against FAIR principles with test F2A 'Structured metadata'.",
+        "raw_value": "0",
+        "status": {
+          "@id": "schema:CompletedActionStatus"
+        }
+      },
+      {
+        "@type": "CheckResult",
+        "assessesIndicator": {
+          "@id": "https://w3id.org/fair/principles/terms/F2B"
+        },
+        "checkingSoftware": {
+          "@id": "https://w3id.org/everse/tools/fair-checker",
+          "@type": "schema:SoftwareApplication",
+          "name": "FAIRChecker",
+          "version": "0.1.0"
+        },
+        "evidence": "FAIR-Checker test F2B (Shared vocabularies for metadata) returned score 0 for target https://github.com/computproteomics/vsclust. Test description: Weak: FAIR-Checker verifies that at least one used ontology class or property are known in major ontology registries (OLS, BioPortal, LOV, AgroPortal, EarthPortal)<br> Strong: FAIR-Checker verifies that all used ontology classes or properties are known in major ontology registries (OLS, BioPortal, LOV, AgroPortal, EarthPortal) Evaluated at 2026-11-11T08:50:21.709270.",
+        "output": "false",
+        "process": "FAIR-Checker evaluates the repository against FAIR principles with test F2B 'Shared vocabularies for metadata'.",
+        "raw_value": "0",
+        "status": {
+          "@id": "schema:CompletedActionStatus"
+        }
+      },
+      {
+        "@type": "CheckResult",
+        "assessesIndicator": {
+          "@id": "https://w3id.org/fair/principles/terms/I1"
+        },
+        "checkingSoftware": {
+          "@id": "https://w3id.org/everse/tools/fair-checker",
+          "@type": "schema:SoftwareApplication",
+          "name": "FAIRChecker",
+          "version": "0.1.0"
+        },
+        "evidence": "FAIR-Checker test I1 (Machine readable format) returned score 0 for target https://github.com/computproteomics/vsclust. Test description: FAIR-Checker verifies that at least one RDF triple can be found in metadata. Evaluated at 2026-11-11T08:50:21.728982.",
+        "output": "false",
+        "process": "FAIR-Checker evaluates the repository against FAIR principles with test I1 'Machine readable format'.",
+        "raw_value": "0",
+        "status": {
+          "@id": "schema:CompletedActionStatus"
+        }
+      },
+      {
+        "@type": "CheckResult",
+        "assessesIndicator": {
+          "@id": "https://w3id.org/fair/principles/terms/I2"
+        },
+        "checkingSoftware": {
+          "@id": "https://w3id.org/everse/tools/fair-checker",
+          "@type": "schema:SoftwareApplication",
+          "name": "FAIRChecker",
+          "version": "0.1.0"
+        },
+        "evidence": "FAIR-Checker test I2 (Use shared ontologies) returned score 0 for target https://github.com/computproteomics/vsclust. Test description: Weak: FAIR-Checker verifies that at least one used ontology class or property are known in major ontology registries (OLS, BioPortal, LOV)<br> Strong: FAIR-Checker verifies that all used ontology classes or properties are known in major ontology registries (OLS, BioPortal, LOV) Evaluated at 2026-11-11T08:50:21.731728.",
+        "output": "false",
+        "process": "FAIR-Checker evaluates the repository against FAIR principles with test I2 'Use shared ontologies'.",
+        "raw_value": "0",
+        "status": {
+          "@id": "schema:CompletedActionStatus"
+        }
+      },
+      {
+        "@type": "CheckResult",
+        "assessesIndicator": {
+          "@id": "https://w3id.org/fair/principles/terms/I3"
+        },
+        "checkingSoftware": {
+          "@id": "https://w3id.org/everse/tools/fair-checker",
+          "@type": "schema:SoftwareApplication",
+          "name": "FAIRChecker",
+          "version": "0.1.0"
+        },
+        "evidence": "FAIR-Checker test I3 (External links) returned score 0 for target https://github.com/computproteomics/vsclust. Test description: FAIR-Checker verifies that at least 3 different URL authorities are used in the URIs of RDF metadata. Evaluated at 2026-11-11T08:50:21.734629.",
+        "output": "false",
+        "process": "FAIR-Checker evaluates the repository against FAIR principles with test I3 'External links'.",
+        "raw_value": "0",
+        "status": {
+          "@id": "schema:CompletedActionStatus"
+        }
+      },
+      {
+        "@type": "CheckResult",
+        "assessesIndicator": {
+          "@id": "https://w3id.org/fair/principles/terms/R11"
+        },
+        "checkingSoftware": {
+          "@id": "https://w3id.org/everse/tools/fair-checker",
+          "@type": "schema:SoftwareApplication",
+          "name": "FAIRChecker",
+          "version": "0.1.0"
+        },
+        "evidence": "FAIR-Checker test R11 returned score 0 for target https://github.com/computproteomics/vsclust. Evaluated at 2026-11-11T08:50:21.742116.",
+        "output": "false",
+        "process": "FAIR-Checker evaluates the repository against FAIR principles with test R11.",
+        "raw_value": "0",
+        "status": {
+          "@id": "schema:CompletedActionStatus"
+        }
+      }
+    ],
+    "creator": {
+      "@type": "schema:Person",
+      "name": "Quality Pipeline"
+    },
+    "dateCreated": "2026-11-11T08:50:21+00:00",
+    "description": "Automated quality assessment of vsclust (e0b4c035972c320b3fc3f6e76a2a0502eb49ca57) run by resqui.",
+    "license": {
+      "@id": "https://creativecommons.org/publicdomain/zero/1.0/"
+    },
+    "name": "Quality assessment for vsclust"
+  },
+  "rsec": {
+    "files": [
+      "bioconda_vsclust.yaml",
+      "vsclust.biocontainers.jsonld",
+      "vsclust.biocontainers.ttl",
+      "vsclust.biocontainers.yaml",
+      "vsclust.bioschemas.jsonld",
+      "vsclust.biotools.json",
+      "vsclust.oeb.metrics.json"
+    ]
+  },
+  "code_metrics": {
+    "files": 21,
+    "functions": 93,
+    "total_nloc": 2252,
+    "total_ccn": 317,
+    "avg_ccn": 3.41,
+    "nloc_per_file": 107.24,
+    "duplicate_rate": 12.38
+  },
+  "europe_pmc": {},
+  "openalex": {},
+  "edam": {
+    "http://edamontology.org/format_3752": {
+      "label": "CSV",
+      "has_children": false,
+      "is_obsolete": false
+    }
+  }
+}

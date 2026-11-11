@@ -45,6 +45,15 @@ re-score it later without fetching anything again.
 ingested fields and helper functions each metric uses; add
 `--figure lineage.html` to draw it as a flow figure.
 
+Compare reported metrics from saved data files in a LibreOffice Calc spreadsheet:
+
+```bash
+python scripts/metrics_report.py tool-a.json tool-b.json -o metrics.ods
+```
+
+See the [usage guide](docs/usage.md#comparing-reported-metrics) for included
+sources and report details.
+
 ## Functions
 
 <details>
