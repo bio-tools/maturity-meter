@@ -20,10 +20,21 @@ without fetching anything: `--data data.json`.
 The bundled resqui configuration includes the eight FAIR-Checker checks
 supported by the bio-tools QualityPipelines fork. They require that fork's
 `FAIRChecker` plugin and a running Docker daemon; FAIR-Checker evaluates the
-repository URL. Re-run the evaluation without supplying previously saved
+repository URL. The configuration also runs RSFC, OEBFAIR, SuperLinter,
+ASTMetrics, HowFairIs and OpenSSF Scorecard checks corresponding to the
+workbook's retained and provisional indicators. These tools provide individual
+checks, not necessarily every subcheck of a composite workbook indicator.
+They require Docker, image downloads, network access and (for some checks) a
+GitHub token; ASTMetrics and HowFairIs install Python tools. Runs can be much
+slower, and the overall resqui timeout is one hour. Re-run the evaluation
+without supplying previously saved
 `quality_checks` to collect the new results: `--data` reuses a supplied
-assessment instead of running resqui again. If a resqui check fails, it can be
-absent from the saved data.
+assessment instead of running resqui again. Missing configured checks are
+logged, along with failures reported by resqui; resqui may omit failed checks.
+Resqui and its tools use the system temporary directory (or `TMPDIR` if set)
+for clones and tool environments, so insufficient space can prevent an
+assessment. Existing batch data files are skipped,
+so use a new output directory to collect newly configured checks.
 
 ## Batch evaluation from CSV
 
@@ -66,9 +77,9 @@ saved ingestion files:
 python scripts/metrics_report.py tool-a.json tool-b.json -o metrics.ods
 ```
 
-The spreadsheet contains a metric-details sheet (column ID, source, identifier and
-expected range), and a comparison sheet with tools as rows and metric
-IDs as columns. A blank cell means that the input did not report a value; a
+The spreadsheet contains a metric-details sheet (metric name, source, identifier,
+expected range and short description), and a comparison sheet with tools as rows
+and source-qualified metric names as columns. A blank cell means that the input did not report a value; a
 blank range means it is not specified. Values are copied without calculating
 new metrics. Numeric and Boolean values remain typed spreadsheet cells; text
 values remain text. The comparison sheet may require horizontal scrolling.
@@ -78,9 +89,16 @@ stars, forks, open-issue and branch-protection fields, the scalar measurements
 in the OpenEBench metrics record, bio.tools publication citation counts, and
 OpenAlex citation counts and FWCI and Europe PMC citation counts and
 open-access fields. It does not treat arbitrary repository metadata as metrics.
-Publication metrics retain their DOI (or PMID) so that distinct works are not
-combined. OpenEBench list entries without a DOI or year are identified by their
-position, which may not represent the same item across different records.
+For publication metrics, each source and metric has one column per tool. Its
+cell contains a JSON list of reported values with DOI or PMID when available;
+OpenEBench publication results also retain list positions and any year or title.
+No values are summed or averaged. Other OpenEBench list entries without a DOI or
+year are identified by their position, which may not represent the same item
+across different records. Generic descriptions identify the reported field when
+no more specific definition is available.
+If a source reports multiple checks for the same indicator, their outputs,
+processes, statuses and evidence are retained together as a JSON list in one
+comparison cell.
 
 ## Web API
 
