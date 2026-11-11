@@ -2,7 +2,7 @@
 reconciliation and dimension scores, and reading resqui check verdicts.
 """
 
-from .checks import findings_note, has_any_file, resqui_verdict
+from .checks import findings_note, has_any_file, resqui_verdict, verdict_metric
 from .scaling import (
     placeholder_dimension_score,
     placeholder_reconcile,
@@ -16,4 +16,5 @@ __all__ = [
     "placeholder_reconcile",
     "placeholder_scale",
     "resqui_verdict",
+    "verdict_metric",
 ]

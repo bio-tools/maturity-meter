@@ -291,9 +291,10 @@ def _optional_module(name: str) -> ModuleType | None:
 def _metric_functions(dimension: str) -> list[Callable[[IngestedData], Any]]:
     """The metric functions in a dimension's ``metrics`` module.
 
-    A metric is any public function there that returns a
-    :class:`MetricResult`, including shared metrics imported from elsewhere;
-    helpers (which return other types) are left out.
+    A metric is any public function there that takes only the ingested data
+    and returns a :class:`MetricResult`, including shared metrics imported
+    from elsewhere. Helpers (other return types or extra parameters, such as
+    ``verdict_metric``) are left out.
     """
     module = _optional_module(f"{COMPONENTS_PACKAGE}.{dimension}.metrics")
     if module is None:
@@ -301,9 +302,17 @@ def _metric_functions(dimension: str) -> list[Callable[[IngestedData], Any]]:
     return [
         fn
         for name, fn in inspect.getmembers(module, inspect.isfunction)
-        if not name.startswith("_")
-        and inspect.signature(fn).return_annotation in (MetricResult, "MetricResult")
+        if not name.startswith("_") and _is_metric(fn)
     ]
+
+
+def _is_metric(fn: Callable[..., Any]) -> bool:
+    """Whether ``fn`` looks like ``metric(data: IngestedData) -> MetricResult``."""
+    signature = inspect.signature(fn)
+    return (
+        signature.return_annotation in (MetricResult, "MetricResult")
+        and len(signature.parameters) == 1
+    )
 
 
 def _merge(existing: list[str], called: dict[str, str], kind: str) -> list[str]:
