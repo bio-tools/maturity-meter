@@ -1,4 +1,6 @@
-"""Helpers to read verdicts from the resqui quality checks."""
+"""Helpers to read yes/no verdicts: resqui checks and repository files."""
+
+from collections.abc import Iterable
 
 from maturity_meter.components.utils.scaling import placeholder_reconcile
 from maturity_meter.models import IngestedData
@@ -38,3 +40,26 @@ def resqui_verdict(data: IngestedData, indicator: str) -> float | None:
         elif output in FAILING_OUTPUTS:
             verdicts.append(0.0)
     return placeholder_reconcile(verdicts)
+
+
+def has_any_file(data: IngestedData, paths: Iterable[str]) -> float | None:
+    """Whether the repository contains any of the given files.
+
+    Parameters
+    ----------
+    data : IngestedData
+        Ingested data; uses the repository ``files`` list.
+    paths : iterable of str
+        File paths relative to the repository root, compared
+        case-insensitively (e.g. ``".github/dependabot.yml"``).
+
+    Returns
+    -------
+    float | None
+        1.0 if any is present, 0.0 if none is, or None without a file list.
+    """
+    files = data.repository.get("files")
+    if files is None:
+        return None
+    wanted = {path.lower() for path in paths}
+    return float(any(f.lower() in wanted for f in files))
