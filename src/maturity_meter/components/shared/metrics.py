@@ -9,21 +9,9 @@ from maturity_meter.components.utils.checks import (
     has_any_file,
     resqui_verdict,
 )
+from maturity_meter.components.utils.files import DEPENDENCY_UPDATE_FILES
 from maturity_meter.components.utils.scaling import placeholder_reconcile
 from maturity_meter.models import IngestedData, MetricResult
-
-# Configuration files of dependency update tools (Dependabot, Renovate).
-DEPENDENCY_UPDATE_FILES = (
-    ".github/dependabot.yml",
-    ".github/dependabot.yaml",
-    "renovate.json",
-    "renovate.json5",
-    ".renovaterc",
-    ".renovaterc.json",
-    ".github/renovate.json",
-    ".github/renovate.json5",
-    ".gitlab/renovate.json",
-)
 
 
 def dependency_management(data: IngestedData) -> MetricResult:

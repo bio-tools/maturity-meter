@@ -11,6 +11,9 @@ from maturity_meter.models import IngestedData, MetricResult
 PASSING_OUTPUTS = {"true", "valid", "secure"}
 FAILING_OUTPUTS = {"false", "invalid", "insecure"}
 
+# Note for metrics whose only source is a resqui check that did not run.
+NO_RESQUI_NOTE = "resqui did not check this (it needs Docker and a GitHub repository)."
+
 
 def resqui_verdict(data: IngestedData, indicator: str) -> float | None:
     """Verdict of the resqui check(s) for one EVERSE indicator.
