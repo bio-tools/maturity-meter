@@ -3,7 +3,7 @@
 from collections.abc import Iterable
 
 from maturity_meter.components.utils.scaling import placeholder_reconcile
-from maturity_meter.models import IngestedData
+from maturity_meter.models import IngestedData, MetricResult
 
 # resqui does not serialize a pass/fail flag; the verdict is the plugin's
 # ``output`` string. Other outputs (e.g. "error", "indeterminate") give no
@@ -87,4 +87,45 @@ def findings_note(findings: dict[str, float | None], yes: str, no: str) -> str:
             if verdict is not None
         )
         + "."
+    )
+
+
+def verdict_metric(
+    name: str,
+    findings: dict[str, float | None],
+    *,
+    yes: str = "found",
+    no: str = "not found",
+    suggestion: str | None = None,
+    missing: str = "No source could check this.",
+) -> MetricResult:
+    """A yes/no metric that reconciles the verdicts of several sources.
+
+    Parameters
+    ----------
+    name : str
+        Metric name.
+    findings : dict[str, float | None]
+        Verdict per source (1 or 0, or None when the source has no verdict),
+        combined with :func:`placeholder_reconcile`.
+    yes, no : str
+        Wording for a positive and a negative verdict in the note.
+    suggestion : str, optional
+        Suggestion given when no source found it (value 0).
+    missing : str
+        Note when no source has a verdict.
+
+    Returns
+    -------
+    MetricResult
+        The reconciled metric, with a note naming each source's verdict.
+    """
+    value = placeholder_reconcile(list(findings.values()))
+    if value is None:
+        return MetricResult(name=name, value=None, note=missing)
+    return MetricResult(
+        name=name,
+        value=value,
+        note=findings_note(findings, yes, no),
+        suggestions=[suggestion] if suggestion and value == 0 else [],
     )
