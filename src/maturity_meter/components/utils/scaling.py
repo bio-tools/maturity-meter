@@ -7,9 +7,11 @@ decided.
 
 from statistics import mean
 
+from maturity_meter.components.utils.roles import role
 from maturity_meter.models import MetricResult
 
 
+@role("scaling")
 def placeholder_scale(value: float, cap: float, invert: bool = False) -> float:
     """Placeholder scaling: linear from 0 (score 0) to ``cap`` (score 1).
 
@@ -31,6 +33,7 @@ def placeholder_scale(value: float, cap: float, invert: bool = False) -> float:
     return 1.0 - score if invert else score
 
 
+@role("reconciliation")
 def placeholder_reconcile(values: list[float | None]) -> float | None:
     """Placeholder reconciliation of one quantity reported by several sources.
 
@@ -51,6 +54,7 @@ def placeholder_reconcile(values: list[float | None]) -> float | None:
     return mean(available) if available else None
 
 
+@role("aggregation")
 def placeholder_dimension_score(metrics: list[MetricResult]) -> float | None:
     """Placeholder dimension score: the mean of the assessed metrics.
 
