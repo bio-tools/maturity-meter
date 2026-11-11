@@ -1,13 +1,17 @@
 """Scientific impact metrics.
 
 Each function computes one metric from the ingested data and returns its
-:class:`MetricResult`, scored with the placeholder :func:`scale`.
+:class:`MetricResult`, scored with the placeholder helpers in
+:mod:`maturity_meter.components.utils.scaling`.
 """
 
 from statistics import mean
 from typing import Any
 
-from maturity_meter.components.scaling import scale
+from maturity_meter.components.utils.scaling import (
+    placeholder_reconcile,
+    placeholder_scale,
+)
 from maturity_meter.models import IngestedData, MetricResult
 
 STAR_CAP = 50.0
@@ -51,7 +55,7 @@ def star_count(data: IngestedData) -> MetricResult:
         )
     return MetricResult(
         name="star_count",
-        value=scale(stars, cap=STAR_CAP),
+        value=placeholder_scale(stars, cap=STAR_CAP),
         note=f"{stars} stars (scores 1 from {STAR_CAP:g}).",
     )
 
@@ -76,47 +80,89 @@ def fork_count(data: IngestedData) -> MetricResult:
         )
     return MetricResult(
         name="fork_count",
-        value=scale(forks, cap=FORK_CAP),
+        value=placeholder_scale(forks, cap=FORK_CAP),
         note=f"{forks} forks (scores 1 from {FORK_CAP:g}).",
     )
+
+
+def _citation_counts(data: IngestedData) -> dict[str, dict[str, int]]:
+    """Citation counts per publication and source.
+
+    Publications are keyed by lower-cased DOI so sources can be matched;
+    OpenEBench publications without a DOI get a key of their own.
+
+    Returns
+    -------
+    dict[str, dict[str, int]]
+        ``{publication: {source: count}}`` for every source with a count.
+    """
+    counts: dict[str, dict[str, int]] = {}
+
+    def add(publication: str, source: str, count: Any) -> None:
+        if isinstance(count, int | float):
+            counts.setdefault(publication.lower(), {})[source] = int(count)
+
+    for doi, work in data.openalex.items():
+        if work is not None:
+            add(doi, "OpenAlex", work.get("cited_by_count"))
+    for doi, record in data.europe_pmc.items():
+        if record is not None:
+            add(doi, "Europe PMC", record.get("citedByCount"))
+    metrics = (data.openebench or {}).get("metrics") or {}
+    for publication in (metrics.get("project") or {}).get("publications") or []:
+        for entry in publication.get("entries") or []:
+            key = (
+                entry.get("doi")
+                or f"openebench:{entry.get('pmid') or entry.get('title')}"
+            )
+            add(str(key), "OpenEBench", entry.get("cit_count"))
+    return counts
 
 
 def citation_count(data: IngestedData) -> MetricResult:
     """Citations summed over all publications, scaled up to CITATION_CAP.
 
+    Every source with a count contributes: OpenAlex ``cited_by_count`` and
+    Europe PMC ``citedByCount`` for the request's DOIs, and OpenEBench's
+    ``cit_count`` for the tool's registered publications. Counts of the same
+    publication from different sources are combined with
+    :func:`placeholder_reconcile`; the results are summed over publications.
+
     Parameters
     ----------
     data : IngestedData
-        Ingested data; uses OpenAlex ``cited_by_count`` of each DOI's work.
+        Ingested data.
 
     Returns
     -------
     MetricResult
-        The scored metric, or ``value=None`` without DOIs or OpenAlex works.
+        The scored metric, or ``value=None`` if no source has a count.
     """
-    if not data.request.dois:
-        return MetricResult(
-            name="citation_count",
-            value=None,
-            note="No DOIs given.",
-            suggestions=[_ADD_DOIS],
-        )
-    counts = [
-        w["cited_by_count"] for w in _works(data) if w.get("cited_by_count") is not None
-    ]
+    counts = _citation_counts(data)
     if not counts:
+        if not data.request.dois:
+            return MetricResult(
+                name="citation_count",
+                value=None,
+                note="No DOIs given and no publications found in OpenEBench.",
+                suggestions=[_ADD_DOIS],
+            )
         return MetricResult(
             name="citation_count",
             value=None,
-            note="None of the DOIs were found in OpenAlex.",
+            note="No citation counts found for the publications.",
         )
-    total = sum(counts)
+    per_publication = [
+        placeholder_reconcile(list(c.values())) or 0.0 for c in counts.values()
+    ]
+    total = sum(per_publication)
+    sources = sorted({source for c in counts.values() for source in c})
     return MetricResult(
         name="citation_count",
-        value=scale(total, cap=CITATION_CAP),
+        value=placeholder_scale(total, cap=CITATION_CAP),
         note=(
-            f"{total} citations over {len(counts)} publication(s) "
-            f"(scores 1 from {CITATION_CAP:g})."
+            f"{total:.0f} citations over {len(counts)} publication(s), "
+            f"from {', '.join(sources)} (scores 1 from {CITATION_CAP:g})."
         ),
     )
 
@@ -148,7 +194,7 @@ def fwci(data: IngestedData) -> MetricResult:
     average = mean(values)
     return MetricResult(
         name="fwci",
-        value=scale(average, cap=FWCI_CAP),
+        value=placeholder_scale(average, cap=FWCI_CAP),
         note=(
             f"Mean FWCI {average:.2f} over {len(values)} publication(s); "
             f"1 is the field average (scores 1 from {FWCI_CAP:g})."
