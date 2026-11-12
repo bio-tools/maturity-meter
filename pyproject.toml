@@ -25,6 +25,7 @@ api = [
 test = ["pytest", "fastapi", "httpx"]
 quality = ["pre-commit", "ruff", "mypy"]
 docs = ["zensical", "mkdocstrings[python]"]
+reports = ["matplotlib>=3.8"]
 
 [project.scripts]
 "maturity-meter" = "maturity_meter.adapters.cli.app:main"

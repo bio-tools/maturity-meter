@@ -54,6 +54,15 @@ python scripts/metrics_report.py tool-a.json tool-b.json -o metrics.ods
 See the [usage guide](docs/usage.md#comparing-reported-metrics) for included
 sources and report details.
 
+Generate a PDF of metric distributions and exploratory similarities:
+
+```bash
+poetry install --extras reports
+poetry run python scripts/metrics_stats.py tool-a.json tool-b.json -o metrics.pdf
+```
+
+See the [PDF report guide](docs/usage.md#metric-statistics-pdf) for limitations.
+
 For sequential evaluation of multiple tools from a CSV, see the
 [batch evaluation guide](docs/usage.md#batch-evaluation-from-csv).
 

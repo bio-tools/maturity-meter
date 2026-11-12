@@ -104,6 +104,42 @@ comparison cell.
 Publication metrics retain their DOI (or PMID) so that distinct works are not
 combined. OpenEBench list entries without a DOI or year are identified by their
 position, which may not represent the same item across different records.
+
+## Metric statistics PDF
+
+Install the optional plotting dependency and pass the same saved JSON files used
+for the spreadsheet:
+
+```bash
+poetry install --extras reports
+poetry run python scripts/metrics_stats.py results/batch/raw/*.json -o results/batch/statistics.pdf
+```
+
+`poetry install` may replace an editable local resqui installation with the
+locked version. If you use the local QualityPipelines fork, reinstall it with
+`poetry run pip install -e ../QualityPipelines` after installing the extra.
+
+Select one saved result per tool; duplicate bio.tools IDs are rejected rather
+than counted twice. When an ID is absent, the repository URL identifies the
+tool. Different bio.tools entries can share a repository and are counted
+separately. The PDF has a distribution for each scalar metric,
+including categorical values, and lists excluded metrics. Numeric histograms
+count tools; boolean and categorical values are shown as frequency bars.
+Grouped publication values and multiple checks in one cell are excluded from
+both distributions and comparisons, as are mixed-type and non-finite metrics.
+Missing values are not counted as zero.
+
+The comparison sections show up to 20 numeric pairs ranked by signed Pearson
+correlation and 20 boolean pairs ranked by exact agreement. Only tools
+with both values are used. At least five overlapping tools are required by
+default; `--min-overlap` changes this threshold (minimum three). Constant
+numeric values cannot be correlated. Categorical and cross-type pairs are not
+compared. Positional OpenEBench list entries are charted but not compared,
+because the same position can mean different things for different tools.
+High agreement can arise from imbalanced values, and correlation or
+agreement does not establish that metrics measure the same thing. Review
+source evidence before interpreting results.
+
 ## Lineage
 
 To see which ingested data and helper functions (scaling, reconciliation, ...)
