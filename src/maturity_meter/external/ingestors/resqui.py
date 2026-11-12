@@ -12,6 +12,10 @@ not each download the repository.
 
 Every run labels the containers resqui starts, so they can be removed if
 resqui hangs or is cancelled.
+
+Inside :func:`shared_limit`, every resqui run shares one limit on the number of
+resqui processes, so several evaluations at once (a batch) do not overload
+Docker.
 """
 
 import asyncio
@@ -25,6 +29,8 @@ import signal
 import sys
 import tempfile
 import uuid
+from collections.abc import Iterator
+from contextvars import ContextVar
 from pathlib import Path
 from typing import Any
 
@@ -51,9 +57,43 @@ fi
 exec "{docker}" "$@"
 """
 
+# Set by shared_limit: one limit on resqui processes for every run inside it.
+_shared_slots: ContextVar[asyncio.Semaphore | None] = ContextVar(
+    "resqui_slots", default=None
+)
+
 
 class ResquiError(Exception):
     """Raised when resqui is unavailable or its run fails."""
+
+
+def plugin_count(config: Path = DEFAULT_CONFIG) -> int:
+    """Return the number of resqui plugins (one process each) in ``config``."""
+    indicators = json.loads(config.read_text())["indicators"]
+    return len({indicator["plugin"] for indicator in indicators})
+
+
+@contextlib.contextmanager
+def shared_limit(limit: int) -> Iterator[None]:
+    """Share one limit on resqui processes between all runs inside this block.
+
+    Each :class:`ResquiIngestor` normally limits only its own plugins. Inside
+    this block, the processes of every run (also in tasks started inside it)
+    count towards ``limit`` together, and an ingestor's own ``parallel`` is
+    ignored. Waiting for a free slot does not count towards a run's timeout.
+
+    Parameters
+    ----------
+    limit : int
+        Maximum number of resqui processes running at the same time.
+    """
+    if limit < 1:
+        raise ValueError("limit must be at least 1")
+    token = _shared_slots.set(asyncio.Semaphore(limit))
+    try:
+        yield
+    finally:
+        _shared_slots.reset(token)
 
 
 def _executable() -> str:
@@ -109,6 +149,7 @@ class ResquiIngestor(Ingestor):
     parallel : int, optional
         Maximum number of plugins whose checks run at the same time; each
         runs its own Docker containers. All plugins run at once by default.
+        Ignored inside :func:`shared_limit`, which sets one limit for all runs.
     mirror : pathlib.Path, optional
         Local clone of the repository for resqui to clone from instead of the
         network (see :class:`maturity_meter.external.repository.SharedClone`).
@@ -223,7 +264,9 @@ class ResquiIngestor(Ingestor):
         plugins: dict[str, list[dict[str, Any]]] = {}
         for indicator in indicators:
             plugins.setdefault(indicator["plugin"], []).append(indicator)
-        semaphore = asyncio.Semaphore(self.parallel or len(plugins) or 1)
+        semaphore = _shared_slots.get() or asyncio.Semaphore(
+            self.parallel or len(plugins) or 1
+        )
 
         async def run(plugin: str, group: list[dict[str, Any]]) -> dict[str, Any]:
             config = workdir / f"{plugin}.config.json"
