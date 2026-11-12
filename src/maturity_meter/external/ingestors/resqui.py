@@ -27,7 +27,7 @@ from maturity_meter.external.protocols import Ingestor
 logger = logging.getLogger(__name__)
 
 DEFAULT_CONFIG = Path(__file__).parent / "resqui_config.json"
-TIMEOUT_SECONDS = 3600
+TIMEOUT_SECONDS = 600
 LABEL = "maturity-meter-run"
 _CHECKING_SOFTWARE_NAMES = {
     "Gitleaks": "GitLeaks",
