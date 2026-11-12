@@ -84,14 +84,20 @@ def test_missing_checks_are_logged(tmp_path, monkeypatch, caplog):
     }
     monkeypatch.setattr(resqui.shutil, "which", lambda _: "/usr/bin/docker")
     monkeypatch.setattr(resqui, "_remove_containers", AsyncMock())
-    monkeypatch.setattr(
-        resqui.ResquiIngestor, "_run", AsyncMock(return_value=assessment)
-    )
+
+    # Each plugin runs separately; a failed plugin is skipped, not fatal.
+    async def run(self, workdir, env, plugin, config):
+        if plugin == "RSFC":
+            raise resqui.ResquiError("RSFC crashed")
+        return assessment
+
+    monkeypatch.setattr(resqui.ResquiIngestor, "_run", run)
     with caplog.at_level(logging.WARNING, logger=resqui.__name__):
         result = asyncio.run(
             resqui.ResquiIngestor("https://github.com/x/y", config=config).fetch()
         )
     assert result == assessment
+    assert "Skipping resqui plugin RSFC: RSFC crashed" in caplog.text
     assert "RSFC.has_releases" in caplog.text
     assert "OpenSSFScorecard.has_ci_tests" not in caplog.text
 
@@ -116,7 +122,7 @@ def test_resqui_reports_partial_errors_without_confusing_failed_scores(
         result = asyncio.run(
             resqui.ResquiIngestor(
                 "https://github.com/x/y", github_token="secret-token"
-            )._run(tmp_path, {})
+            )._run(tmp_path, {}, "Plugin", tmp_path / "config.json")
         )
     assert result == {"checks": []}
     assert "RuntimeError: failed with [redacted]" in caplog.text
@@ -134,4 +140,8 @@ def test_resqui_error_reports_stdout_if_stderr_empty(tmp_path, monkeypatch):
     script.chmod(0o755)
     monkeypatch.setattr(resqui, "_executable", lambda: str(script))
     with pytest.raises(resqui.ResquiError, match="Error: no space left"):
-        asyncio.run(resqui.ResquiIngestor("https://github.com/x/y")._run(tmp_path, {}))
+        asyncio.run(
+            resqui.ResquiIngestor("https://github.com/x/y")._run(
+                tmp_path, {}, "Plugin", tmp_path / "config.json"
+            )
+        )
