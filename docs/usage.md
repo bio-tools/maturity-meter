@@ -26,7 +26,7 @@ workbook's retained and provisional indicators. These tools provide individual
 checks, not necessarily every subcheck of a composite workbook indicator.
 They require Docker, image downloads, network access and (for some checks) a
 GitHub token; ASTMetrics and HowFairIs install Python tools. Runs can be much
-slower, and the overall resqui timeout is one hour. Re-run the evaluation
+slower; each plugin's resqui run has a 10-minute timeout. Re-run the evaluation
 without supplying previously saved
 `quality_checks` to collect the new results: `--data` reuses a supplied
 assessment instead of running resqui again. Missing configured checks are
@@ -137,7 +137,11 @@ workbook's retained and provisional indicators. These tools provide individual
 checks, not necessarily every subcheck of a composite workbook indicator.
 They require Docker, image downloads, network access and (for some checks) a
 GitHub token; ASTMetrics and HowFairIs install Python tools. Runs can be much
-slower, and the overall resqui timeout is one hour. Re-run the evaluation
+slower. To save time, each plugin's checks run in their own resqui process,
+all plugins at once (set `MATURITY_METER_RESQUI_PARALLEL` to run fewer at a
+time); each process clones the repository and has a
+10-minute timeout. A plugin whose run fails is skipped and the other plugins' checks
+are kept. Re-run the evaluation
 without supplying previously saved
 `quality_checks` to collect the new results: `--data` reuses a supplied
 assessment instead of running resqui again. Missing configured checks are
