@@ -22,6 +22,8 @@ from maturity_meter.external import (
     EDAMIngestor,
     EuropePMCIngestor,
     EuropePMCNotFoundError,
+    FairCheckerError,
+    FairCheckerIngestor,
     GitHubIngestor,
     GitLabIngestor,
     OpenAlexIngestor,
@@ -129,6 +131,7 @@ def repository_ingestor(request: EvaluationRequest) -> Ingestor:
 _UNAVAILABLE = (
     httpx.HTTPError,
     EuropePMCNotFoundError,
+    FairCheckerError,
     ResquiError,
     CodeMetricsError,
     CloneError,
@@ -260,6 +263,12 @@ async def _ingest(request: EvaluationRequest, clone: SharedClone) -> IngestedDat
             else _none()
         ),
     )
+    fair_checker = _supplied_or(
+        supplied.fair_checker,
+        lambda: _optional(
+            "FAIR-Checker", FairCheckerIngestor(request.repository).fetch()
+        ),
+    )
     # RSEc is looked up by bio.tools ID, so it needs one.
     rsec = _supplied_or(
         supplied.rsec,
@@ -299,6 +308,7 @@ async def _ingest(request: EvaluationRequest, clone: SharedClone) -> IngestedDat
             openebench,
             openalex,
             quality,
+            fair_checker,
             rsec,
             code_metrics,
             *europe_pmc,
@@ -309,6 +319,7 @@ async def _ingest(request: EvaluationRequest, clone: SharedClone) -> IngestedDat
         openebench_data,
         openalex_data,
         quality_data,
+        fair_checker_data,
         rsec_data,
         code_metrics_data,
         *europe_pmc_data,
@@ -330,6 +341,7 @@ async def _ingest(request: EvaluationRequest, clone: SharedClone) -> IngestedDat
         biotools=biotools_data,
         openebench=openebench_data,
         quality_checks=quality_data,
+        fair_checker=fair_checker_data,
         rsec=rsec_data,
         code_metrics=code_metrics_data,
         europe_pmc={

@@ -131,6 +131,37 @@ def test_multiple_checks_for_one_indicator_are_preserved(tmp_path):
     assert checks[1]["evidence"] == "Second evidence"
 
 
+def test_direct_fairchecker_scores_and_legacy_results_are_distinct(tmp_path):
+    source = tmp_path / "input.json"
+    data = saved_data("test", [check("false")], {})
+    data["quality_checks"]["checks"][0].update(
+        {
+            "assessesIndicator": {"@id": "https://w3id.org/fair/principles/terms/F1A"},
+            "checkingSoftware": {"name": "FAIRChecker"},
+        }
+    )
+    data["fair_checker"] = [
+        {
+            "@type": ["https://w3id.org/ftr#TestResult"],
+            "https://w3id.org/ftr#outputFromTest": [
+                {"@id": "https://fair-checker.example/test/F1A"}
+            ],
+            "http://www.w3.org/ns/prov#value": [{"@value": 0}],
+        }
+    ]
+    source.write_text(json.dumps(data))
+    output = tmp_path / "comparison.ods"
+    subprocess.run(
+        [sys.executable, str(SCRIPT), str(source), "-o", str(output)], check=True
+    )
+    details, comparison = read_tables(output)
+    labels = {(row[1], row[2]): row[0] for row in details[1:]}
+    direct = labels["FAIRChecker API", "F1A"]
+    legacy = labels["FAIRChecker", "https://w3id.org/fair/principles/terms/F1A"]
+    assert comparison[1][comparison[0].index(direct)] == "0"
+    assert comparison[1][comparison[0].index(legacy)] == "false"
+
+
 def test_publications_share_columns_and_retain_values(tmp_path):
     first = saved_data("first", [], {})
     second = saved_data("second", [], {})

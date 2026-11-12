@@ -129,7 +129,7 @@ def metric_name(metric: Metric) -> str:
         "I3": "External links",
         "R11": "License metadata",
     }
-    if identifier in fair_names and metric.source == "FAIRChecker":
+    if identifier in fair_names and metric.source in ("FAIRChecker", "FAIRChecker API"):
         return fair_names[identifier]
     return re.sub(r"(?<=[a-z])(?=[A-Z])", " ", identifier).replace("_", " ")
 
@@ -219,6 +219,28 @@ def reported_metrics(data: dict[str, Any]) -> dict[Metric, str | int | float | b
             if len(checks) == 1
             else json.dumps(checks, ensure_ascii=False)
         )
+
+    # Keep direct API scores distinct from resqui's derived true/false outputs.
+    for node in data.get("fair_checker") or []:
+        if "https://w3id.org/ftr#TestResult" not in node.get("@type", []):
+            continue
+        tests = node.get("https://w3id.org/ftr#outputFromTest", [])
+        values = node.get("http://www.w3.org/ns/prov#value", [])
+        if not isinstance(tests, list) or not isinstance(values, list):
+            raise ValueError("Invalid FAIR-Checker test result")
+        if len(tests) != 1 or len(values) > 1:
+            raise ValueError("FAIR-Checker test result has ambiguous test or value")
+        test = tests[0].get("@id") if isinstance(tests[0], dict) else None
+        if (
+            not isinstance(test, str)
+            or "/test/" not in test
+            or test.rsplit("/test/", 1)[-1] in ("", "None")
+        ):
+            raise ValueError("FAIR-Checker test result has no usable test ID")
+        if values:
+            if not isinstance(values[0], dict) or "@value" not in values[0]:
+                raise ValueError("FAIR-Checker test result has an invalid value")
+            add("FAIRChecker API", test.rsplit("/test/", 1)[-1], values[0]["@value"])
 
     # OpenEBench's metrics document is already a source-specific metric record.
     # DOI/year keys preserve the identity of publication and annual observations.

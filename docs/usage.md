@@ -14,18 +14,17 @@ poetry run maturity-meter evaluate https://github.com/owner/repo \
 ```
 
 The result is printed as JSON. `-o result.json` also saves it, and
-`--save-data data.json` saves the ingested data, which can be re-scored later
-without fetching anything: `--data data.json`.
+`--save-data data.json` saves the ingested data for reuse with
+`--data data.json`. Missing or null sources, including FAIR-Checker in older
+files, are fetched again.
 
-The bundled resqui configuration includes the eight FAIR-Checker checks
-supported by the bio-tools QualityPipelines fork. They require that fork's
-`FAIRChecker` plugin and a running Docker daemon; FAIR-Checker evaluates the
-repository URL. The configuration also runs RSFC, OEBFAIR, SuperLinter,
-ASTMetrics, HowFairIs and OpenSSF Scorecard checks corresponding to the
+FAIR-Checker evaluates the repository URL via its official API, separately
+from resqui. The bundled resqui configuration runs RSFC, OEBFAIR, HowFairIs
+and OpenSSF Scorecard checks corresponding to the
 workbook's retained and provisional indicators. These tools provide individual
 checks, not necessarily every subcheck of a composite workbook indicator.
 They require Docker, image downloads, network access and (for some checks) a
-GitHub token; ASTMetrics and HowFairIs install Python tools. Runs can be much
+GitHub token; HowFairIs installs Python tools. Runs can be much
 slower; each plugin's resqui run has a 10-minute timeout. Re-run the evaluation
 without supplying previously saved
 `quality_checks` to collect the new results: `--data` reuses a supplied
@@ -88,7 +87,16 @@ The report includes Lizard code metrics, resqui check outputs, GitHub/GitLab
 stars, forks, open-issue and branch-protection fields, the scalar measurements
 in the OpenEBench metrics record, bio.tools publication citation counts, and
 OpenAlex citation counts and FWCI and Europe PMC citation counts and
-open-access fields. It does not treat arbitrary repository metadata as metrics.
+open-access fields. The official FAIR-Checker API's reported numeric test
+values appear under `FAIRChecker API`, separate from `FAIRChecker` outputs in
+older resqui assessments, which were transformed to true/false/indeterminate.
+The API's raw JSON-LD is saved as `fair_checker`; missing or failed assessments
+are null. Existing `--data` files remain usable, and a supplied `fair_checker`
+assessment is reused. The API receives the repository URL, including for GitLab
+repositories, and may take up to 300 seconds to respond. Responses with missing
+or duplicate test identifiers are rejected with a warning instead of assigning
+scores to the wrong indicators. The report does not treat arbitrary repository
+metadata as metrics.
 
 For publication metrics, each source and metric has one column per tool. Its
 cell contains a JSON list of reported values with DOI or PMID when available;
@@ -164,15 +172,13 @@ Functions get their role from the `@role(...)` decorator in
 `maturity_meter.components.utils.roles` (`"scaling"`, `"reconciliation"` or
 `"aggregation"`); tag new helpers with it so they show up in the right place.
 
-The bundled resqui configuration includes the eight FAIR-Checker checks
-supported by the bio-tools QualityPipelines fork. They require that fork's
-`FAIRChecker` plugin and a running Docker daemon; FAIR-Checker evaluates the
-repository URL. The configuration also runs RSFC, OEBFAIR, SuperLinter,
-ASTMetrics, HowFairIs and OpenSSF Scorecard checks corresponding to the
+FAIR-Checker evaluates the repository URL via its official API, separately
+from resqui. The bundled resqui configuration runs RSFC, OEBFAIR, HowFairIs
+and OpenSSF Scorecard checks corresponding to the
 workbook's retained and provisional indicators. These tools provide individual
 checks, not necessarily every subcheck of a composite workbook indicator.
 They require Docker, image downloads, network access and (for some checks) a
-GitHub token; ASTMetrics and HowFairIs install Python tools. Runs can be much
+GitHub token; HowFairIs installs Python tools. Runs can be much
 slower. To save time, each plugin's checks run in their own resqui process,
 all plugins at once (set `MATURITY_METER_RESQUI_PARALLEL` to run fewer at a
 time); each process has a 10-minute timeout. A plugin whose run fails is skipped and the other plugins' checks
@@ -238,7 +244,9 @@ The report includes Lizard code metrics, resqui check outputs, GitHub/GitLab
 stars, forks, open-issue and branch-protection fields, the scalar measurements
 in the OpenEBench metrics record, bio.tools publication citation counts, and
 OpenAlex citation counts and FWCI and Europe PMC citation counts and
-open-access fields. It does not treat arbitrary repository metadata as metrics.
+open-access fields. Direct FAIR-Checker scores are reported separately from
+legacy resqui FAIRChecker outputs. It does not treat arbitrary repository
+metadata as metrics.
 For publication metrics, each source and metric has one column per tool. Its
 cell contains a JSON list of reported values with DOI or PMID when available;
 OpenEBench publication results also retain list positions and any year or title.
