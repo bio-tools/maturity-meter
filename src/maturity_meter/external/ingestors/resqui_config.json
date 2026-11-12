@@ -1,16 +1,6 @@
 {
   "indicators": [
     {
-      "name": "has_citation",
-      "plugin": "CFFConvert",
-      "@id": "https://w3id.org/everse/i/indicators/software_has_citation"
-    },
-    {
-      "name": "has_no_security_leak",
-      "plugin": "Gitleaks",
-      "@id": "https://w3id.org/everse/i/indicators/no_leaked_credentials"
-    },
-    {
       "name": "has_license",
       "plugin": "HowFairIs",
       "@id": "https://w3id.org/everse/i/indicators/software_has_license"
@@ -104,16 +94,6 @@
       "name": "has_no_binary_artifacts",
       "plugin": "OpenSSFScorecard",
       "@id": "https://w3id.org/everse/i/indicators/has_no_binary_artifacts"
-    },
-    {
-      "name": "has_no_linting_issues",
-      "plugin": "SuperLinter",
-      "@id": "https://w3id.org/everse/i/indicators/has_no_linting_issues"
-    },
-    {
-      "name": "maintainability_index_ok",
-      "plugin": "ASTMetrics",
-      "@id": "https://w3id.org/everse/i/indicators/maintainability_index_ok"
     },
     {
       "name": "persistent_and_unique_identifier",
