@@ -4,6 +4,10 @@ Runs the ``resqui`` command-line tool on a repository and returns its parsed
 JSON assessment. resqui clones the repository and runs its checks in Docker, so
 ``git`` and a running Docker daemon are required.
 
+resqui runs its checks one after another, so the configuration is split by
+plugin and one resqui process runs per plugin, several at a time. Their
+assessments are merged into one.
+
 Every run labels the containers resqui starts, so they can be removed if
 resqui hangs or is cancelled.
 """
@@ -100,6 +104,9 @@ class ResquiIngestor(Ingestor):
     config : pathlib.Path, optional
         resqui configuration listing the indicators to run. Defaults to the
         configuration bundled with this package.
+    parallel : int, optional
+        Maximum number of plugins whose checks run at the same time; each
+        runs its own Docker containers. All plugins run at once by default.
     """
 
     def __init__(
@@ -107,10 +114,14 @@ class ResquiIngestor(Ingestor):
         repository_url: str,
         github_token: str | None = None,
         config: Path = DEFAULT_CONFIG,
+        parallel: int | None = None,
     ):
+        if parallel is not None and parallel < 1:
+            raise ValueError("parallel must be at least 1")
         self.repository_url = repository_url
         self.github_token = github_token
         self.config = config
+        self.parallel = parallel
 
     async def fetch(self) -> dict[str, Any]:
         """
@@ -121,18 +132,20 @@ class ResquiIngestor(Ingestor):
         dict
             The resqui ``SoftwareQualityAssessment`` document, whose ``checks``
             list has one entry per indicator that ran. Indicators resqui had to
-            skip (for example for a missing token) are absent.
+            skip (for example for a missing token), and those of a plugin whose
+            run failed, are absent.
 
         Raises
         ------
         ResquiError
-            If resqui or Docker is not installed, or the run fails, times out,
-            or writes no output.
+            If resqui or Docker is not installed, or the runs of all plugins
+            fail, time out, or write no output.
         """
         docker = shutil.which("docker")
         if docker is None:
             raise ResquiError("Docker was not found; resqui needs it for its checks")
 
+        configured = json.loads(self.config.read_text())["indicators"]
         run_id = uuid.uuid4().hex
         try:
             with tempfile.TemporaryDirectory() as directory:
@@ -143,8 +156,16 @@ class ResquiIngestor(Ingestor):
                     _DOCKER_SHIM.format(docker=docker, label=LABEL, run_id=run_id)
                 )
                 (shim / "docker").chmod(0o755)
-                env = {**os.environ, "PATH": f"{shim}{os.pathsep}{os.environ['PATH']}"}
-                assessment = await self._run(workdir, env)
+                # resqui clones the repository into a temporary directory and
+                # never deletes it; keep those clones here so they go too.
+                clones = workdir / "tmp"
+                clones.mkdir()
+                env = {
+                    **os.environ,
+                    "PATH": f"{shim}{os.pathsep}{os.environ['PATH']}",
+                    "TMPDIR": str(clones),
+                }
+                assessment = await self._run_plugins(workdir, env, configured)
         finally:
             await _remove_containers(docker, run_id)
 
@@ -152,7 +173,6 @@ class ResquiIngestor(Ingestor):
             f"resqui ran {len(assessment.get('checks', []))} checks on "
             f"{self.repository_url}"
         )
-        configured = json.loads(self.config.read_text())["indicators"]
         present = {
             (
                 check.get("checkingSoftware", {}).get("name"),
@@ -175,22 +195,64 @@ class ResquiIngestor(Ingestor):
             )
         return assessment
 
-    async def _run(self, workdir: Path, env: dict[str, str]) -> dict[str, Any]:
-        """Run the resqui process and parse its output file."""
-        output = workdir / "assessment.json"
+    async def _run_plugins(
+        self, workdir: Path, env: dict[str, str], indicators: list[dict[str, Any]]
+    ) -> dict[str, Any]:
+        """Run each plugin's indicators in its own resqui process, concurrently.
+
+        Returns the merged assessment: the first successful run's document with
+        the checks of all successful runs, in configuration order.
+        """
+        plugins: dict[str, list[dict[str, Any]]] = {}
+        for indicator in indicators:
+            plugins.setdefault(indicator["plugin"], []).append(indicator)
+        semaphore = asyncio.Semaphore(self.parallel or len(plugins) or 1)
+
+        async def run(plugin: str, group: list[dict[str, Any]]) -> dict[str, Any]:
+            config = workdir / f"{plugin}.config.json"
+            config.write_text(json.dumps({"indicators": group}))
+            async with semaphore:
+                return await self._run(workdir, env, plugin, config)
+
+        results = await asyncio.gather(
+            *(run(plugin, group) for plugin, group in plugins.items()),
+            return_exceptions=True,
+        )
+        assessments: list[dict[str, Any]] = []
+        errors: list[ResquiError] = []
+        for plugin, result in zip(plugins, results, strict=True):
+            if isinstance(result, ResquiError):
+                logger.warning(f"Skipping resqui plugin {plugin}: {result}")
+                errors.append(result)
+            elif isinstance(result, BaseException):
+                raise result
+            else:
+                assessments.append(result)
+        if not assessments:
+            raise errors[0] if errors else ResquiError("No resqui checks configured")
+        return {
+            **assessments[0],
+            "checks": [check for a in assessments for check in a.get("checks", [])],
+        }
+
+    async def _run(
+        self, workdir: Path, env: dict[str, str], plugin: str, config: Path
+    ) -> dict[str, Any]:
+        """Run one resqui process for ``plugin`` and parse its output file."""
+        output = workdir / f"{plugin}.assessment.json"
         command = [
             _executable(),
             "-u",
             self.repository_url,
             "-c",
-            str(self.config),
+            str(config),
             "-o",
             str(output),
         ]
         if self.github_token:
             command += ["-t", self.github_token]
 
-        logger.debug(f"Running resqui on {self.repository_url}")
+        logger.debug(f"Running resqui {plugin} checks on {self.repository_url}")
         process = await asyncio.create_subprocess_exec(
             *command,
             stdin=asyncio.subprocess.DEVNULL,
@@ -242,7 +304,9 @@ class ResquiIngestor(Ingestor):
             )
             raise ResquiError(f"resqui failed (exit {process.returncode}): {detail}")
         if failures:
-            logger.warning("resqui reported check failures: %s", "; ".join(failures))
+            logger.warning(
+                "resqui %s reported check failures: %s", plugin, "; ".join(failures)
+            )
         try:
             assessment: dict[str, Any] = json.loads(output.read_text())
         except ValueError as error:

@@ -231,7 +231,12 @@ async def _ingest(request: EvaluationRequest) -> IngestedData:
         supplied.quality_checks,
         lambda: (
             _optional(
-                "resqui", ResquiIngestor(request.repository, _github_token()).fetch()
+                "resqui",
+                ResquiIngestor(
+                    request.repository,
+                    _github_token(),
+                    parallel=get_settings().resqui_parallel,
+                ).fetch(),
             )
             if request.host == "github.com"
             else _none()
