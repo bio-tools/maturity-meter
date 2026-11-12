@@ -145,3 +145,30 @@ def test_resqui_error_reports_stdout_if_stderr_empty(tmp_path, monkeypatch):
                 tmp_path, {}, "Plugin", tmp_path / "config.json"
             )
         )
+
+
+@pytest.mark.parametrize("mirror", [None, "mirror.git"])
+def test_resqui_clones_from_mirror_when_given(tmp_path, monkeypatch, mirror):
+    from maturity_meter.external.ingestors import resqui
+
+    config = tmp_path / "config.json"
+    config.write_text(
+        json.dumps({"indicators": [{"plugin": "RSFC", "name": "x", "@id": "x"}]})
+    )
+    monkeypatch.setattr(resqui.shutil, "which", lambda _: "/usr/bin/docker")
+    monkeypatch.setattr(resqui, "_remove_containers", AsyncMock())
+    envs = []
+
+    async def run(self, workdir, env, plugin, config):
+        envs.append(env)
+        return {"checks": []}
+
+    monkeypatch.setattr(resqui.ResquiIngestor, "_run", run)
+    mirror_path = tmp_path / mirror if mirror else None
+    url = "https://github.com/x/y"
+    asyncio.run(resqui.ResquiIngestor(url, config=config, mirror=mirror_path).fetch())
+    if mirror_path is None:
+        assert "GIT_CONFIG_COUNT" not in envs[0]
+    else:
+        assert envs[0]["GIT_CONFIG_KEY_0"] == f"url.{mirror_path}.insteadOf"
+        assert envs[0]["GIT_CONFIG_VALUE_0"] == url

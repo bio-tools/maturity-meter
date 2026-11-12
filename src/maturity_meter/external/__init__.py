@@ -18,8 +18,12 @@ from .ingestors import (
     RSEcIngestor,
     formats_in_biotools,
 )
+from .repository import CloneError, SharedClone, shared_clone
 
 __all__ = [
+    "CloneError",
+    "SharedClone",
+    "shared_clone",
     "CodeMetricsError",
     "CodeMetricsIngestor",
     "EDAMIngestor",

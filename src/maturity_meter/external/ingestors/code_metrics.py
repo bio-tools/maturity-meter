@@ -1,16 +1,14 @@
 """
 Source-code metrics with Lizard (https://github.com/terryyin/lizard).
-Shallow-clones the repository, or analyses a local checkout, and computes
+Analyses a local checkout of the repository and computes
 cyclomatic complexity, lines of code and the duplicate-code rate, following
 the FAIR Toolbox maturity model's analyzer.
 """
 
 import asyncio
 import logging
-import os
 import re
 import sys
-import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -20,13 +18,12 @@ from maturity_meter.external.protocols import Ingestor
 
 logger = logging.getLogger(__name__)
 
-CLONE_TIMEOUT_SECONDS = 300
 DUPLICATES_TIMEOUT_SECONDS = 300
 _DUPLICATE_RATE = re.compile(r"Total duplicate rate:\s+([\d.]+)%")
 
 
 class CodeMetricsError(Exception):
-    """Raised when the repository cannot be cloned or analysed."""
+    """Raised when the repository cannot be analysed."""
 
 
 async def _run(command: list[str], timeout: float) -> tuple[int, str]:
@@ -36,8 +33,6 @@ async def _run(command: list[str], timeout: float) -> tuple[int, str]:
         stdin=asyncio.subprocess.DEVNULL,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.DEVNULL,
-        # Never let git stop to ask for credentials (e.g. a missing repo).
-        env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
     )
     try:
         stdout, _ = await asyncio.wait_for(process.communicate(), timeout=timeout)
@@ -73,14 +68,11 @@ class CodeMetricsIngestor(Ingestor):
 
     Parameters
     ----------
-    repository_url : str
-        Repository to shallow-clone when no ``checkout`` is given.
-    checkout : pathlib.Path, optional
-        Existing local checkout to analyse instead of cloning.
+    checkout : pathlib.Path
+        Local checkout of the repository to analyse.
     """
 
-    def __init__(self, repository_url: str, checkout: Path | None = None):
-        self.repository_url = repository_url
+    def __init__(self, checkout: Path):
         self.checkout = checkout
 
     async def _duplicate_rate(self, path: Path) -> float | None:
@@ -96,20 +88,9 @@ class CodeMetricsIngestor(Ingestor):
         match = _DUPLICATE_RATE.search(output)
         return float(match.group(1)) if match else None
 
-    async def _analyse(self, path: Path) -> dict[str, Any]:
-        try:
-            complexity, duplicate_rate = await asyncio.gather(
-                asyncio.to_thread(_complexity, path), self._duplicate_rate(path)
-            )
-        except Exception as error:
-            # Lizard can fail on unusual source files; report it as this
-            # source being unavailable rather than failing the evaluation.
-            raise CodeMetricsError(f"Code analysis failed: {error!r}") from error
-        return {**complexity, "duplicate_rate": duplicate_rate}
-
     async def fetch(self) -> dict[str, Any]:
         """
-        Clone (if needed) and analyse the repository.
+        Analyse the checkout.
 
         Returns
         -------
@@ -121,34 +102,17 @@ class CodeMetricsIngestor(Ingestor):
         Raises
         ------
         CodeMetricsError
-            If the repository cannot be cloned.
+            If the analysis fails.
         """
-        if self.checkout is not None:
-            return await self._analyse(self.checkout)
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "repository"
-            try:
-                code, _ = await _run(
-                    [
-                        "git",
-                        "clone",
-                        "--quiet",
-                        "--depth",
-                        "1",
-                        "--",
-                        self.repository_url,
-                        str(path),
-                    ],
-                    CLONE_TIMEOUT_SECONDS,
-                )
-            except TimeoutError as error:
-                raise CodeMetricsError(
-                    f"Cloning {self.repository_url} timed out"
-                ) from error
-            except FileNotFoundError as error:
-                raise CodeMetricsError("git was not found") from error
-            if code != 0:
-                raise CodeMetricsError(f"Could not clone {self.repository_url}")
-            metrics = await self._analyse(path)
-        logger.info(f"Computed code metrics for {self.repository_url}")
+        try:
+            complexity, duplicate_rate = await asyncio.gather(
+                asyncio.to_thread(_complexity, self.checkout),
+                self._duplicate_rate(self.checkout),
+            )
+        except Exception as error:
+            # Lizard can fail on unusual source files; report it as this
+            # source being unavailable rather than failing the evaluation.
+            raise CodeMetricsError(f"Code analysis failed: {error!r}") from error
+        metrics = {**complexity, "duplicate_rate": duplicate_rate}
+        logger.info(f"Computed code metrics for {self.checkout}")
         return metrics
