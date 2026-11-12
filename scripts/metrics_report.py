@@ -6,11 +6,176 @@ import json
 import re
 import sys
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from enum import Enum
 from pathlib import Path
 from typing import Any
 from xml.etree import ElementTree as ET
 from zipfile import ZIP_DEFLATED, ZIP_STORED, ZipFile
+
+
+class MetricCategory(Enum):
+    COMPATIBILITY = "compatibility"
+    FAIRNESS = "fairness"
+    MAINTAINABILITY = "maintainability"
+    SCIENTIFIC_IMPACT = "scientific impact"
+    SECURITY = "security"
+    SUSTAINABILITY = "sustainability"
+
+
+EVERSE = "https://w3id.org/everse/i/indicators/"
+FAIR = "https://w3id.org/fair/principles/terms/"
+C = MetricCategory
+
+# Categories per metric identifier. Bracketed list positions in identifiers
+# (e.g. "[0]", "[doi=...]") are normalized to "[]" before lookup, so keys use "[]".
+METRIC_CATEGORIES: dict[str, MetricCategory] = {
+    **dict.fromkeys(
+        [
+            # EVERSE indicators
+            f"{EVERSE}{name}"
+            for name in (
+                "software_has_citation",
+                "software_has_license",
+                "software_has_license_for_file_types",
+                "descriptive_metadata",
+                "listed_in_registry",
+                "persistent_and_unique_identifier",
+                "software_has_documentation",
+                "archived_in_scholarly_repository",
+                "archived_in_software_heritage",
+                "codemeta_completeness",
+                "software_has_tests",
+                "version_control_use",
+                "versioning_standards_use",
+            )
+        ]
+        + [f"{FAIR}{name}" for name in ("F1A", "F1B", "F2A", "F2B", "I1", "I2", "I3", "R11")]
+        + [
+            # OpenEBench
+            "deprecated",
+            "distribution.binaries.freeness",
+            "distribution.binaries.registration",
+            "distribution.packages",
+            "distribution.source_packages",
+            "distribution.sourcecode.free",
+            "distribution.sourcecode.interpreted",
+            "distribution.sourcecode.license",
+            "distribution.sourcecode.public",
+            "distribution.sourcecode.readme",
+            "distribution.sourcecode.repository.anonymous",
+            "distribution.sourcecode.repository.online",
+            "project.documentation.api",
+            "project.documentation.general",
+            "project.documentation.manual",
+            "project.license.open_source",
+            "project.license.osi",
+            "project.publications[].entries[].pmcid",
+            "project.publications[].entries[].refs[].count",
+            "project.readme",
+            "project.summary.description",
+            "project.website.access_time",
+            "project.website.bioschemas",
+            "project.website.copyright",
+            "project.website.half_year_stat[].days",
+            "project.website.half_year_stat[].serie[]",
+            "project.website.half_year_stat[].status",
+            "project.website.https",
+            "project.website.last_check",
+            "project.website.last_month_access.average_access_time",
+            "project.website.last_month_access.downtime_days",
+            "project.website.last_month_access.uptime_days",
+            "project.website.license",
+            "project.website.operational",
+            "project.website.redirects[].status",
+            "project.website.redirects[].url",
+            "project.website.ssl",
+            "support.email",
+            "support.issue_tracking.public_tracker",
+            "support.issue_tracking.resolve_time",
+            # Publications
+            "publication.isOpenAccess",
+        ],
+        C.FAIRNESS,
+    ),
+    **dict.fromkeys(
+        [
+            f"{EVERSE}{name}"
+            for name in (
+                "maintainability_index_ok",
+                "has_ci-tests",
+                "project_is_active",
+                "has_active_communication_channels",
+                "has_releases",
+                "repository_workflows",
+                "requirements_specified",
+                "has_no_linting_issues",
+            )
+        ]
+        + [
+            # Lizard
+            "avg_ccn",
+            "duplicate_rate",
+            "files",
+            "functions",
+            "nloc_per_file",
+            "total_ccn",
+            "total_nloc",
+        ],
+        C.MAINTAINABILITY,
+    ),
+    **dict.fromkeys(
+        [
+            "stars",
+            "forks",
+            "project.publications[].entries[].cit_count",
+            "project.publications[].entries[].citations[].count",
+            "project.publications[].entries[].ref_count",
+            "publication.citationCount",
+            "publication.citedByCount",
+            "publication.cited_by_count",
+            "publication.fwci",
+        ],
+        C.SCIENTIFIC_IMPACT,
+    ),
+    **dict.fromkeys(
+        [
+            "default_branch_protected",
+            *(
+                f"{EVERSE}{name}"
+                for name in (
+                    "no_leaked_credentials",
+                    "has_no_binary_artifacts",
+                    "human_code_review_requirement",
+                    "no_critical_vulnerability",
+                    "static_analysis_common_vulnerabilities",
+                    "uses_fuzzing",
+                )
+            ),
+        ],
+        C.SECURITY,
+    ),
+    **dict.fromkeys(
+        [
+            "open_issues",
+            *(
+                f"{EVERSE}{name}"
+                for name in (
+                    "dependency_management",
+                    "has_published_package",
+                    "has_contribution_guidelines",
+                    "software_is_containerized",
+                )
+            ),
+        ],
+        C.SUSTAINABILITY,
+    ),
+}
+
+
+def metric_category(identifier: str) -> MetricCategory | None:
+    """Return the category of a metric, or None when unknown."""
+    return METRIC_CATEGORIES.get(re.sub(r"\[[^\]]*\]", "[]", identifier))
 
 
 @dataclass(frozen=True, order=True)
@@ -18,6 +183,15 @@ class Metric:
     source: str
     identifier: str
     expected_range: str = ""
+    # Derived from the identifier, so it is excluded from comparison and hashing.
+    category: MetricCategory | None = field(init=False, compare=False, default=None)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "category", metric_category(self.identifier))
+
+
+def category_label(metric: Metric) -> str | None:
+    return metric.category.value.title() if metric.category else None
 
 
 REPOSITORY_METRICS = {
@@ -180,9 +354,9 @@ def reported_metrics(data: dict[str, Any]) -> dict[Metric, str | int | float | b
         else "GitLab"
     )
     repo = repository.get("repo") or {}
-    for field, (identifier, expected_range) in REPOSITORY_METRICS.items():
-        if field in repo:
-            add(host, identifier, repo[field], expected_range)
+    for field_name, (identifier, expected_range) in REPOSITORY_METRICS.items():
+        if field_name in repo:
+            add(host, identifier, repo[field_name], expected_range)
     add(host, "open_issues", repository.get("open_issues"), ">= 0")
     add(
         host,
@@ -191,8 +365,8 @@ def reported_metrics(data: dict[str, Any]) -> dict[Metric, str | int | float | b
         "true / false",
     )
 
-    for field, value in (data.get("code_metrics") or {}).items():
-        add("Lizard", field, value, CODE_RANGES.get(field, ""))
+    for field_name, value in (data.get("code_metrics") or {}).items():
+        add("Lizard", field_name, value, CODE_RANGES.get(field_name, ""))
 
     quality = data.get("quality_checks") or {}
     grouped_checks: dict[Metric, list[dict[str, Any]]] = {}
@@ -284,11 +458,11 @@ def reported_metrics(data: dict[str, Any]) -> dict[Metric, str | int | float | b
     for source, fields in PUBLICATION_FIELDS.items():
         for doi, record in (data.get(source) or {}).items():
             if record is not None:
-                for field, expected_range in fields.items():
+                for field_name, expected_range in fields.items():
                     add_publication(
                         source,
-                        f"publication.{field}",
-                        record.get(field),
+                        f"publication.{field_name}",
+                        record.get(field_name),
                         {"doi": doi},
                         expected_range,
                     )
@@ -320,6 +494,7 @@ def table(
             "metric-identifier",
             "metric-range",
             "metric-description",
+            "metric-category",
         ]
         if name == "Metric details"
         else ["tool", *(["metric"] * (len(rows[0]) - 1))]
@@ -396,6 +571,7 @@ def write_report(inputs: list[Path], output: Path) -> None:
         ("metric-identifier", 20),
         ("metric-range", 4),
         ("metric-description", 15),
+        ("metric-category", 6),
         ("tool", 7),
         ("metric", 6),
     ):
@@ -421,7 +597,14 @@ def write_report(inputs: list[Path], output: Path) -> None:
         body,
         "Metric details",
         [
-            ["Metric", "Source", "Identifier", "Expected range", "Description"],
+            [
+                "Metric",
+                "Source",
+                "Identifier",
+                "Expected range",
+                "Description",
+                "Indicator category",
+            ],
             *[
                 [
                     labels[m],
@@ -429,6 +612,7 @@ def write_report(inputs: list[Path], output: Path) -> None:
                     m.identifier,
                     m.expected_range,
                     metric_description(m),
+                    category_label(m),
                 ]
                 for m in metrics
             ],
