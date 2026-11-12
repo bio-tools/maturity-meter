@@ -139,8 +139,8 @@ They require Docker, image downloads, network access and (for some checks) a
 GitHub token; ASTMetrics and HowFairIs install Python tools. Runs can be much
 slower. To save time, each plugin's checks run in their own resqui process,
 all plugins at once (set `MATURITY_METER_RESQUI_PARALLEL` to run fewer at a
-time); each process clones the repository and has a
-10-minute timeout. A plugin whose run fails is skipped and the other plugins' checks
+time); the repository is cloned once and shared by the processes, and
+each process has a 10-minute timeout. A plugin whose run fails is skipped and the other plugins' checks
 are kept. Re-run the evaluation
 without supplying previously saved
 `quality_checks` to collect the new results: `--data` reuses a supplied

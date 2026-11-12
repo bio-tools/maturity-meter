@@ -6,7 +6,9 @@ JSON assessment. resqui clones the repository and runs its checks in Docker, so
 
 resqui runs its checks one after another, so the configuration is split by
 plugin and one resqui process runs per plugin, several at a time. Their
-assessments are merged into one.
+assessments are merged into one. The repository is cloned once into a local
+mirror, and git is told to use it instead of the network, so the resqui
+processes do not each download the repository.
 
 Every run labels the containers resqui starts, so they can be removed if
 resqui hangs or is cancelled.
@@ -63,6 +65,40 @@ def _executable() -> str:
     if found is None:
         raise ResquiError("The resqui executable was not found")
     return found
+
+
+async def _mirror_env(url: str, mirror: Path) -> dict[str, str]:
+    """Clone ``url`` once into ``mirror`` and return git env redirecting to it.
+
+    With the returned variables, every ``git clone <url>`` reads the local
+    mirror instead of the network, while ``remote.origin.url`` keeps the real
+    URL that resqui reports and passes to its checks. If the clone fails (for
+    example for a Zenodo URL, which resqui resolves itself), nothing is
+    redirected and each resqui process clones from the network.
+    """
+    process = await asyncio.create_subprocess_exec(
+        *("git", "clone", "--bare", "--", url, str(mirror)),
+        stdin=asyncio.subprocess.DEVNULL,
+        stdout=asyncio.subprocess.DEVNULL,
+        stderr=asyncio.subprocess.PIPE,
+        env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
+    )
+    try:
+        _, stderr = await asyncio.wait_for(process.communicate(), TIMEOUT_SECONDS)
+    finally:
+        if process.returncode is None:  # timed out or cancelled
+            with contextlib.suppress(ProcessLookupError):
+                process.kill()
+            await process.wait()
+    if process.returncode != 0:
+        detail = stderr.decode(errors="replace").strip()
+        logger.warning(f"Could not mirror {url}; resqui will clone it: {detail}")
+        return {}
+    return {
+        "GIT_CONFIG_COUNT": "1",
+        "GIT_CONFIG_KEY_0": f"url.{mirror}.insteadOf",
+        "GIT_CONFIG_VALUE_0": url,
+    }
 
 
 async def _remove_containers(docker: str, run_id: str) -> None:
@@ -164,6 +200,7 @@ class ResquiIngestor(Ingestor):
                     **os.environ,
                     "PATH": f"{shim}{os.pathsep}{os.environ['PATH']}",
                     "TMPDIR": str(clones),
+                    **await _mirror_env(self.repository_url, workdir / "mirror.git"),
                 }
                 assessment = await self._run_plugins(workdir, env, configured)
         finally:
