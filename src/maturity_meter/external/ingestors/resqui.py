@@ -6,7 +6,9 @@ JSON assessment. resqui clones the repository and runs its checks in Docker, so
 
 resqui runs its checks one after another, so the configuration is split by
 plugin and one resqui process runs per plugin, several at a time. Their
-assessments are merged into one.
+assessments are merged into one. Given a local mirror of the repository, git
+is told to clone from it instead of the network, so the resqui processes do
+not each download the repository.
 
 Every run labels the containers resqui starts, so they can be removed if
 resqui hangs or is cancelled.
@@ -107,6 +109,10 @@ class ResquiIngestor(Ingestor):
     parallel : int, optional
         Maximum number of plugins whose checks run at the same time; each
         runs its own Docker containers. All plugins run at once by default.
+    mirror : pathlib.Path, optional
+        Local clone of the repository for resqui to clone from instead of the
+        network (see :class:`maturity_meter.external.repository.SharedClone`).
+        Without it, every resqui process downloads the repository.
     """
 
     def __init__(
@@ -115,6 +121,7 @@ class ResquiIngestor(Ingestor):
         github_token: str | None = None,
         config: Path = DEFAULT_CONFIG,
         parallel: int | None = None,
+        mirror: Path | None = None,
     ):
         if parallel is not None and parallel < 1:
             raise ValueError("parallel must be at least 1")
@@ -122,6 +129,7 @@ class ResquiIngestor(Ingestor):
         self.github_token = github_token
         self.config = config
         self.parallel = parallel
+        self.mirror = mirror
 
     async def fetch(self) -> dict[str, Any]:
         """
@@ -165,6 +173,15 @@ class ResquiIngestor(Ingestor):
                     "PATH": f"{shim}{os.pathsep}{os.environ['PATH']}",
                     "TMPDIR": str(clones),
                 }
+                if self.mirror is not None:
+                    # Every ``git clone <url>`` reads the mirror instead. The
+                    # clones' ``remote.origin.url`` stays the real URL, which
+                    # resqui reports and passes to its checks.
+                    env |= {
+                        "GIT_CONFIG_COUNT": "1",
+                        "GIT_CONFIG_KEY_0": f"url.{self.mirror}.insteadOf",
+                        "GIT_CONFIG_VALUE_0": self.repository_url,
+                    }
                 assessment = await self._run_plugins(workdir, env, configured)
         finally:
             await _remove_containers(docker, run_id)
