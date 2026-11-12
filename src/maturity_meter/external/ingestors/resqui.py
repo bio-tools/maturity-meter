@@ -243,5 +243,8 @@ class ResquiIngestor(Ingestor):
             raise ResquiError(f"resqui failed (exit {process.returncode}): {detail}")
         if failures:
             logger.warning("resqui reported check failures: %s", "; ".join(failures))
-        assessment: dict[str, Any] = json.loads(output.read_text())
+        try:
+            assessment: dict[str, Any] = json.loads(output.read_text())
+        except ValueError as error:
+            raise ResquiError(f"resqui wrote an invalid assessment: {error}") from error
         return assessment

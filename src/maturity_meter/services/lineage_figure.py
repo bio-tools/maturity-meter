@@ -7,10 +7,12 @@ The figure is a Mermaid flowchart with four columns:
 3. the metrics that read them: each field's edge is labelled with the scaling
    applied to it, and the metric's reconciliation function (which combines
    its sources) is shown inside the metric's box;
-4. the dimensions, with the aggregation function (which combines the metrics)
-   as the edge label.
+4. the dimensions, with their aggregation function (which combines the
+   metrics into the dimension's score) shown inside the dimension's box.
 
-It is saved as Mermaid text (``.mmd``) or as an HTML page that renders it.
+It is saved as Mermaid text (``.mmd``) or as an HTML page that renders it. In
+the HTML page, clicking a node shows only what it is connected to (everything
+upstream and downstream of it).
 """
 
 import html
@@ -141,7 +143,14 @@ def lineage_to_mermaid(lineage: Lineage) -> str:
 
     for dimension, color in colors.items():
         dim = lineage.dimensions[dimension]
-        dimension_id = node("dimensions", dimension, _dimension_title(dimension))
+        # The aggregation belongs to the dimension, so it is shown in its box.
+        aggregation = _short(dim.aggregation)
+        title = _dimension_title(dimension)
+        dimension_id = node(
+            "dimensions",
+            dimension,
+            f"{title}<br/><i>{aggregation}</i>" if aggregation else title,
+        )
         for metric_name, metric in dim.metrics.items():
             reconciliation = _short(metric.reconciliation)
             text = (
@@ -150,7 +159,7 @@ def lineage_to_mermaid(lineage: Lineage) -> str:
                 else metric_name
             )
             metric_id = node("metrics", f"{dimension}.{metric_name}", text)
-            edge(metric_id, dimension_id, color, 2.5, _short(dim.aggregation))
+            edge(metric_id, dimension_id, color, 2.5)
             for path in metric.reads:
                 source, field = _split(path)
                 source_id = node("sources", source, source)
@@ -176,6 +185,68 @@ def lineage_to_mermaid(lineage: Lineage) -> str:
     for index, (_, color, width) in enumerate(edges):
         lines.append(f"  linkStyle {index} stroke:{color},stroke-width:{width}px")
     return "\n".join(lines) + "\n"
+
+
+# Clicking a node fades everything that is not upstream or downstream of it.
+# Mermaid names nodes ``flowchart-<id>-<n>`` and edges ``L_<from>_<to>_<n>``,
+# with one edge label per edge in definition order (node ids have no ``_``).
+_FOCUS_SCRIPT = """
+mermaid.initialize({ startOnLoad: false, flowchart: { useMaxWidth: false } });
+mermaid.run({ querySelector: ".mermaid" }).then(() => {
+  const svg = document.querySelector(".mermaid svg");
+  if (!svg) return;
+  const nodes = new Map();
+  for (const g of svg.querySelectorAll("g.node")) {
+    const match = g.id.match(/^flowchart-(.+)-\\d+$/);
+    if (match) nodes.set(match[1], g);
+  }
+  const labels = [...svg.querySelectorAll("g.edgeLabel")];
+  const edges = [...svg.querySelectorAll("path.flowchart-link")].map((path) => {
+    const [, from, to, index] = path.id.split("_");
+    return { from, to, path, label: labels[Number(index)] };
+  });
+  const downstream = new Map();
+  const upstream = new Map();
+  for (const { from, to } of edges) {
+    if (!downstream.has(from)) downstream.set(from, []);
+    if (!upstream.has(to)) upstream.set(to, []);
+    downstream.get(from).push(to);
+    upstream.get(to).push(from);
+  }
+  const reach = (start, graph) => {
+    const seen = new Set([start]);
+    const stack = [start];
+    while (stack.length) {
+      for (const next of graph.get(stack.pop()) || []) {
+        if (!seen.has(next)) { seen.add(next); stack.push(next); }
+      }
+    }
+    return seen;
+  };
+  let selected = null;
+  const focus = (id) => {
+    selected = id;
+    const keep = id === null ? null
+      : new Set([...reach(id, downstream), ...reach(id, upstream)]);
+    for (const [nodeId, g] of nodes) {
+      g.classList.toggle("faded", keep !== null && !keep.has(nodeId));
+      g.classList.toggle("selected", nodeId === id);
+    }
+    for (const edge of edges) {
+      const shown = keep === null || (keep.has(edge.from) && keep.has(edge.to));
+      edge.path.classList.toggle("faded", !shown);
+      if (edge.label) edge.label.classList.toggle("faded", !shown);
+    }
+  };
+  for (const [id, g] of nodes) {
+    g.addEventListener("click", (event) => {
+      event.stopPropagation();
+      focus(selected === id ? null : id);
+    });
+  }
+  svg.addEventListener("click", () => focus(null));
+});
+"""
 
 
 def lineage_to_html(lineage: Lineage) -> str:
@@ -205,6 +276,10 @@ def lineage_to_html(lineage: Lineage) -> str:
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Metric lineage</title>
 <script src="{MERMAID_SCRIPT}"></script>
+<script>
+// Embedded in another page (e.g. the docs): that page has the title and intro.
+if (window.self !== window.top) document.documentElement.classList.add("embedded");
+</script>
 <style>
   :root {{ color-scheme: light; --ink: #0f172a; --muted: #64748b; --rule: #e2e8f0; }}
   body {{ margin: 0; background: #f1f5f9; color: var(--ink);
@@ -232,6 +307,14 @@ def lineage_to_html(lineage: Lineage) -> str:
   .mermaid foreignObject {{ overflow: visible; }}
   footer {{ margin-top: 16px; font-size: 13px; color: var(--muted); }}
   footer ul {{ margin: 4px 0 0; padding-left: 18px; }}
+  .embedded h1, .embedded .lede, .embedded footer {{ display: none; }}
+  .embedded main {{ padding-top: 8px; }}
+  .hint {{ font-size: 13px; color: var(--muted); margin: 0 0 12px; }}
+  .mermaid g.node {{ cursor: pointer; }}
+  .mermaid g.node, .mermaid path.flowchart-link, .mermaid g.edgeLabel {{
+    transition: opacity .15s; }}
+  .mermaid .faded {{ opacity: .1; }}
+  .mermaid g.node.selected > :first-child {{ stroke-width: 3px !important; }}
 </style>
 </head>
 <body>
@@ -240,8 +323,10 @@ def lineage_to_html(lineage: Lineage) -> str:
   <p class="lede">Which ingested data each maturity metric reads, and the functions
   applied on the way: <b>scaling</b> on the edges from data fields,
   <b>reconciliation</b> (in italics) inside each metric, combining its sources,
-  and <b>aggregation</b> on the edges into each dimension.</p>
+  and <b>aggregation</b> (in italics) inside each dimension.</p>
   <div class="legend">{swatches}</div>
+  <p class="hint">Click any node to show only what it is connected to; click it
+  again, or the background, to show everything.</p>
   <div class="card">
 <div class="mermaid">
 {html.escape(lineage_to_mermaid(lineage), quote=False)}</div>
@@ -249,7 +334,7 @@ def lineage_to_html(lineage: Lineage) -> str:
   <footer>Traced on:<ul>{datasets}</ul></footer>
 </main>
 <script>
-mermaid.initialize({{ startOnLoad: true, flowchart: {{ useMaxWidth: false }} }});
+{_FOCUS_SCRIPT}
 </script>
 </body>
 </html>

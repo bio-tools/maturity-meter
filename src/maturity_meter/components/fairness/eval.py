@@ -1,5 +1,61 @@
+from maturity_meter.components.utils.scaling import placeholder_dimension_score
 from maturity_meter.models import DimensionResult, IngestedData
+
+from .metrics import (
+    automated_build,
+    binary_distribution,
+    citation_information,
+    code_quality_tooling,
+    containerization,
+    contribution_and_governance,
+    copyright_and_attribution,
+    documentation,
+    installation_instructions,
+    issue_tracking,
+    license_declaration,
+    open_source_license,
+    per_file_licensing,
+    persistent_identifier,
+    project_website,
+    publications_open_access,
+    purpose_description,
+    registry_listing,
+    releases_and_versioning,
+    semantic_annotation,
+    software_tests,
+    source_archival,
+    source_availability,
+    structured_metadata,
+    version_control,
+)
 
 
 def eval(data: IngestedData) -> DimensionResult:
-    return DimensionResult(value=None)
+    metrics = [
+        license_declaration(data),
+        per_file_licensing(data),
+        open_source_license(data),
+        copyright_and_attribution(data),
+        citation_information(data),
+        publications_open_access(data),
+        registry_listing(data),
+        persistent_identifier(data),
+        structured_metadata(data),
+        semantic_annotation(data),
+        documentation(data),
+        purpose_description(data),
+        installation_instructions(data),
+        version_control(data),
+        releases_and_versioning(data),
+        automated_build(data),
+        software_tests(data),
+        source_availability(data),
+        binary_distribution(data),
+        source_archival(data),
+        code_quality_tooling(data),
+        issue_tracking(data),
+        project_website(data),
+        contribution_and_governance(data),
+        containerization(data),
+    ]
+    return DimensionResult(value=placeholder_dimension_score(metrics), metrics=metrics)

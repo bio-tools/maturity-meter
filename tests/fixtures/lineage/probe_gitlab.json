@@ -1,0 +1,479 @@
+{
+  "request": {
+    "repository": "https://gitlab.com/probe/probe",
+    "dois": [
+      "10.1000/probe"
+    ],
+    "biotools_id": "probe"
+  },
+  "repository": {
+    "readme": "# Probe\n\nA synthetic tool used to trace the metric lineage.\n\n## Installation\n\nInstall with `pip install probe`.\n\n## Citation\n\nPlease cite DOI 10.5281/zenodo.1234567 (archived on zenodo.org and softwareheritage.org, swh:1:dir:0123456789abcdef0123456789abcdef01234567).\n\nListed on bio.tools/probe.\n",
+    "languages": {
+      "Python": 1000
+    },
+    "files": [
+      "LICENSE",
+      "README.md",
+      "CONTRIBUTING.md",
+      "GOVERNANCE.md",
+      "CODE_OF_CONDUCT.md",
+      "AUTHORS",
+      "CITATION.cff",
+      "codemeta.json",
+      "REUSE.toml",
+      "Dockerfile",
+      "environment.yml",
+      "recipe/meta.yaml",
+      "requirements.txt",
+      "pyproject.toml",
+      "Makefile",
+      ".pre-commit-config.yaml",
+      ".github/dependabot.yml",
+      "docs/index.md",
+      "src/probe/__init__.py",
+      "tests/test_probe.py"
+    ],
+    "default_branch_protected": true,
+    "contributors": [
+      {
+        "name": "alice",
+        "contributions": 30
+      },
+      {
+        "name": "bob",
+        "contributions": 10
+      },
+      {
+        "name": "dependabot[bot]",
+        "contributions": 5
+      }
+    ],
+    "closed_issues": [
+      {
+        "created_at": "2026-01-01T00:00:00Z",
+        "closed_at": "2026-01-04T00:00:00Z"
+      }
+    ],
+    "open_issues": 3,
+    "repo": {
+      "path_with_namespace": "probe/probe",
+      "description": "A synthetic tool.",
+      "license": {
+        "key": "mit"
+      },
+      "star_count": 12,
+      "forks_count": 3,
+      "visibility": "public",
+      "last_activity_at": "2026-01-10T00:00:00.000Z",
+      "default_branch": "main"
+    },
+    "latest_release": {
+      "tag_name": "v1.2.3",
+      "released_at": "2026-01-05T00:00:00.000Z",
+      "assets": {
+        "links": [
+          {
+            "name": "probe-1.2.3-linux.tar.gz"
+          }
+        ]
+      }
+    }
+  },
+  "biotools": {
+    "biotoolsID": "probe",
+    "name": "Probe",
+    "description": "A synthetic tool.",
+    "homepage": "https://probe.example.org",
+    "license": "MIT",
+    "topic": [
+      {
+        "uri": "http://edamontology.org/topic_0091",
+        "term": "Bioinformatics"
+      }
+    ],
+    "function": [
+      {
+        "operation": [
+          {
+            "uri": "http://edamontology.org/operation_0004",
+            "term": "Operation"
+          }
+        ],
+        "input": [
+          {
+            "format": [
+              {
+                "uri": "http://edamontology.org/format_1929",
+                "term": "FASTA"
+              }
+            ]
+          }
+        ],
+        "output": [
+          {
+            "format": [
+              {
+                "uri": "http://edamontology.org/format_1929",
+                "term": "FASTA"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "credit": [
+      {
+        "name": "Probe Author"
+      }
+    ],
+    "documentation": [
+      {
+        "url": "https://probe.example.org/docs",
+        "type": [
+          "General",
+          "Installation instructions"
+        ]
+      }
+    ],
+    "download": [
+      {
+        "url": "https://probe.example.org/src",
+        "type": "Source code"
+      },
+      {
+        "url": "https://probe.example.org/bin",
+        "type": "Binaries"
+      }
+    ],
+    "link": [
+      {
+        "url": "https://probe.example.org/issues",
+        "type": [
+          "Issue tracker"
+        ]
+      }
+    ],
+    "publication": [
+      {
+        "doi": "10.1000/probe"
+      }
+    ]
+  },
+  "openebench": {
+    "tool": {
+      "@id": "https://openebench.bsc.es/monitor/tool/biotools:probe:1/cmd/probe.example.org",
+      "name": "Probe",
+      "license": "MIT",
+      "credits": [
+        {
+          "name": "Probe Author"
+        }
+      ]
+    },
+    "metrics": {
+      "project": {
+        "license": {
+          "open_source": true,
+          "osi": true
+        },
+        "website": {
+          "operational": 200,
+          "copyright": true,
+          "bioschemas": true
+        },
+        "documentation": {
+          "general": true,
+          "manual": true,
+          "citation": true
+        },
+        "summary": {
+          "description": true
+        },
+        "build": {
+          "automated": true
+        },
+        "publications": [
+          {
+            "entries": [
+              {
+                "doi": "10.1000/probe",
+                "cit_count": 6
+              }
+            ]
+          }
+        ]
+      },
+      "distribution": {
+        "sourcecode": {
+          "public": true,
+          "free": true,
+          "repository": {
+            "online": true
+          }
+        },
+        "binaries": {
+          "freeness": true
+        },
+        "packages": true
+      },
+      "support": {
+        "issue_tracking": {
+          "public_tracker": true,
+          "resolve_time": "P3D"
+        }
+      }
+    }
+  },
+  "quality_checks": {
+    "checks": [
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/archived_in_scholarly_repository"
+        },
+        "checkingSoftware": {
+          "name": "probe"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/archived_in_software_heritage"
+        },
+        "checkingSoftware": {
+          "name": "probe"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/codemeta_completeness"
+        },
+        "checkingSoftware": {
+          "name": "probe"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/dependency_management"
+        },
+        "checkingSoftware": {
+          "name": "probe"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/descriptive_metadata"
+        },
+        "checkingSoftware": {
+          "name": "probe"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/has_ci-tests"
+        },
+        "checkingSoftware": {
+          "name": "probe"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/has_contribution_guidelines"
+        },
+        "checkingSoftware": {
+          "name": "probe"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/has_no_linting_issues"
+        },
+        "checkingSoftware": {
+          "name": "probe"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/has_releases"
+        },
+        "checkingSoftware": {
+          "name": "probe"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/human_code_review_requirement"
+        },
+        "checkingSoftware": {
+          "name": "probe"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/listed_in_registry"
+        },
+        "checkingSoftware": {
+          "name": "probe"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/no_leaked_credentials"
+        },
+        "checkingSoftware": {
+          "name": "probe"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/persistent_and_unique_identifier"
+        },
+        "checkingSoftware": {
+          "name": "probe"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/requirements_specified"
+        },
+        "checkingSoftware": {
+          "name": "probe"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/software_has_citation"
+        },
+        "checkingSoftware": {
+          "name": "probe"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/software_has_documentation"
+        },
+        "checkingSoftware": {
+          "name": "probe"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/software_has_license"
+        },
+        "checkingSoftware": {
+          "name": "probe"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/software_has_license_for_file_types"
+        },
+        "checkingSoftware": {
+          "name": "probe"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/software_has_tests"
+        },
+        "checkingSoftware": {
+          "name": "probe"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/software_is_containerized"
+        },
+        "checkingSoftware": {
+          "name": "probe"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/uses_tool_for_warnings_and_mistakes"
+        },
+        "checkingSoftware": {
+          "name": "probe"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/version_control_use"
+        },
+        "checkingSoftware": {
+          "name": "probe"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/versioning_standards_use"
+        },
+        "checkingSoftware": {
+          "name": "probe"
+        },
+        "output": "true"
+      }
+    ]
+  },
+  "rsec": {
+    "files": [
+      "bioconda_probe.yaml",
+      "probe.debian.yaml",
+      "probe.biocontainers.yaml",
+      "probe.galaxy.json"
+    ]
+  },
+  "code_metrics": {
+    "files": 3,
+    "functions": 10,
+    "total_nloc": 200,
+    "total_ccn": 25,
+    "avg_ccn": 2.5,
+    "nloc_per_file": 66.67,
+    "duplicate_rate": 3.0
+  },
+  "europe_pmc": {
+    "10.1000/probe": {
+      "doi": "10.1000/probe",
+      "citedByCount": 4,
+      "isOpenAccess": "Y"
+    }
+  },
+  "openalex": {
+    "10.1000/probe": {
+      "doi": "https://doi.org/10.1000/probe",
+      "cited_by_count": 5,
+      "fwci": 1.2,
+      "open_access": {
+        "is_oa": true
+      }
+    }
+  },
+  "edam": {
+    "http://edamontology.org/format_1929": {
+      "label": "FASTA",
+      "has_children": false,
+      "is_obsolete": false
+    }
+  }
+}

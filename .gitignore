@@ -24,6 +24,5 @@ dist/
 build/
 site/
 docs/build/
-
-# results from running the meter
+docs/lineage/
 results/

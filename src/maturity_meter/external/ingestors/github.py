@@ -7,7 +7,7 @@ trimmed lists (files, contributors, closed issues) used by the maturity metrics.
 import asyncio
 import base64
 import logging
-from typing import Any
+from typing import Any, cast
 
 import httpx
 
@@ -144,7 +144,7 @@ class GitHubIngestor(Ingestor):
             github_pages,
             readme,
             languages,
-            files,
+            file_tree,
             branch_protected,
             contributors,
             closed_issues,
@@ -154,13 +154,15 @@ class GitHubIngestor(Ingestor):
             self.fetch_github_pages(),
             self.fetch_readme(),
             self.fetch_languages(),
-            self.fetch_files(branch),
+            self.fetch_file_tree(branch),
             self.fetch_default_branch_protected(branch),
             self.fetch_contributors(),
             self.fetch_closed_issues(),
             self.fetch_open_issues(),
         )
 
+        # gather() loses the element types beyond six awaitables.
+        files, files_truncated = cast(tuple[list[str] | None, bool], file_tree)
         result: dict[str, Any] = {
             "repo": repo_data,
             "latest_release": latest_release_data,
@@ -168,6 +170,7 @@ class GitHubIngestor(Ingestor):
             "readme": readme,
             "languages": languages,
             "files": files,
+            "files_truncated": files_truncated,
             "default_branch_protected": branch_protected,
             "contributors": contributors,
             "closed_issues": closed_issues,
@@ -246,9 +249,39 @@ class GitHubIngestor(Ingestor):
         logger.info(f"Ingested README for {self.owner}/{self.repo} successfully")
         return content.decode("utf-8", errors="replace")
 
+    async def fetch_file_tree(self, branch: str) -> tuple[list[str] | None, bool]:
+        """
+        Fetch the paths of all files on a branch, and whether the list is cut off.
+
+        Parameters
+        ----------
+        branch : str
+            Branch to list, usually the default branch.
+
+        Returns
+        -------
+        tuple[list[str] | None, bool]
+            File paths from GET /git/trees/{branch}?recursive=1 (None if the
+            tree is unavailable, e.g. an empty repository), and whether GitHub
+            truncated the list (very large trees), in which case a file's
+            absence from it proves nothing.
+        """
+        data = await self._get_optional(
+            f"/git/trees/{branch}", "file tree", {"recursive": "1"}
+        )
+        if data is None:
+            return None, False
+        truncated = bool(data.get("truncated"))
+        if truncated:
+            logger.info(f"File tree of {self.owner}/{self.repo} is truncated")
+        paths = [
+            item["path"] for item in data.get("tree", []) if item["type"] == "blob"
+        ]
+        return paths, truncated
+
     async def fetch_files(self, branch: str) -> list[str] | None:
         """
-        Fetch the paths of all files on a branch.
+        Fetch the paths of files on a branch (see :meth:`fetch_file_tree`).
 
         Parameters
         ----------
@@ -258,18 +291,10 @@ class GitHubIngestor(Ingestor):
         Returns
         -------
         list[str] | None
-            File paths from GET /git/trees/{branch}?recursive=1, or None if
-            the tree is unavailable (e.g. an empty repository). Very large
-            trees may be truncated by GitHub.
+            File paths, or None if unavailable.
         """
-        data = await self._get_optional(
-            f"/git/trees/{branch}", "file tree", {"recursive": "1"}
-        )
-        if data is None:
-            return None
-        if data.get("truncated"):
-            logger.info(f"File tree of {self.owner}/{self.repo} is truncated")
-        return [item["path"] for item in data.get("tree", []) if item["type"] == "blob"]
+        paths, _ = await self.fetch_file_tree(branch)
+        return paths
 
     async def fetch_default_branch_protected(self, branch: str) -> bool | None:
         """
@@ -332,7 +357,10 @@ class GitHubIngestor(Ingestor):
         Fetch the number of open issues, excluding pull requests.
 
         The repository's ``open_issues_count`` includes pull requests, so this
-        uses the search API, which has its own, lower rate limit.
+        uses the search API. Its rate limit is much lower (about 10 requests a
+        minute without a token, 30 with one), so any failure here, including
+        that limit, only makes the count unavailable instead of failing the
+        repository.
 
         Returns
         -------
@@ -340,12 +368,17 @@ class GitHubIngestor(Ingestor):
             Number of open issues, or None if unavailable.
         """
         query = f"repo:{self.owner}/{self.repo} type:issue state:open"
-        data = await get_json_optional(
-            f"{self.api_base}/search/issues",
-            params={"q": query, "per_page": 1},
-            headers=self._headers(),
-            missing=self._missing,
-        )
+        try:
+            data = await get_json(
+                f"{self.api_base}/search/issues",
+                params={"q": query, "per_page": 1},
+                headers=self._headers(),
+            )
+        except httpx.HTTPError as error:
+            logger.warning(
+                f"Open issue count unavailable for {self.owner}/{self.repo}: {error}"
+            )
+            return None
         return None if data is None else int(data.get("total_count", 0))
 
     async def get_user(self, username: str) -> dict[str, Any]:
