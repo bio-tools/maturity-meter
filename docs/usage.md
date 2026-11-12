@@ -37,27 +37,40 @@ so use a new output directory to collect newly configured checks.
 
 ## Batch evaluation from CSV
 
-From a source checkout, run evaluations sequentially for a CSV with
-`biotoolsID`, `homepage` (repository URL) and `dois` columns. Multiple DOIs
-are comma-separated. Use the executable from the environment containing the
-local resqui fork:
+Evaluate every tool in a CSV with `biotoolsID`, `homepage` (repository URL)
+and `dois` columns. Multiple DOIs are comma-separated.
 
 ```bash
-python scripts/evaluate_batch.py "results/bio.tools entries - github_gitlab_tools_with_publications.csv" \
-  --output-dir results/batch --executable ../QualityPipelines/.venv/bin/maturity-meter
+maturity-meter batch "results/bio.tools entries - github_gitlab_tools_with_publications.csv" \
+  --output-dir results/batch
 ```
 
 Add `--dry-run` to list and validate entries without running evaluations or
 creating output. Ingested data is saved in `results/batch/raw/`, with CSV row
-numbers and bio.tools IDs in the filenames. No score files are saved. Existing
-data files are skipped and never overwritten; failed evaluations do not leave
-a data file to be mistaken for a completed run. Use a separate output directory
-for each CSV.
+numbers and bio.tools IDs in the filenames, as soon as each tool is done. No
+score files are saved. Existing data files are skipped and never overwritten,
+so an interrupted batch continues where it stopped when run again; failed
+evaluations do not leave a data file to be mistaken for a completed run. Use a
+separate output directory for each CSV. Each tool's log is written to
+`results/batch/logs/`, named like its data file; the terminal shows one line
+per tool as it starts and finishes.
+
+Several tools are evaluated at once (`--jobs`, 4 by default), so the quick,
+network-bound sources of some tools overlap with the slow Docker checks of
+others. The resqui checks of all tools share one limit on resqui processes:
+`MATURITY_METER_RESQUI_PARALLEL`, by default one per configured plugin. Raise
+`--jobs` to keep Docker busy; lower `MATURITY_METER_RESQUI_PARALLEL` if Docker
+runs short of memory or CPU. Requests to the public FAIR-Checker service are
+sent one at a time, since simultaneous requests can mix up its results. With a
+GitHub token, the batch checks GitHub's
+rate limit before each GitHub tool and waits for the reset when fewer than 500
+requests are left, instead of letting sources fail; without a token, most
+GitHub tools will lack data.
 
 GitHub links to releases, files or other paths inside a repository are skipped
 rather than assuming their enclosing repository is the correct one. Invalid or
 unsupported URLs and failed evaluations are reported, processing continues,
-and the script returns a nonzero exit status if any errors occurred. GitLab
+and the command returns a nonzero exit status if any errors occurred. GitLab
 subgroup repository paths are supported. Individual evaluations may take
 several minutes and require network access and Docker.
 
@@ -194,27 +207,40 @@ so use a new output directory to collect newly configured checks.
 
 ## Batch evaluation from CSV
 
-From a source checkout, run evaluations sequentially for a CSV with
-`biotoolsID`, `homepage` (repository URL) and `dois` columns. Multiple DOIs
-are comma-separated. Use the executable from the environment containing the
-local resqui fork:
+Evaluate every tool in a CSV with `biotoolsID`, `homepage` (repository URL)
+and `dois` columns. Multiple DOIs are comma-separated.
 
 ```bash
-python scripts/evaluate_batch.py "results/bio.tools entries - github_gitlab_tools_with_publications.csv" \
-  --output-dir results/batch --executable ../QualityPipelines/.venv/bin/maturity-meter
+maturity-meter batch "results/bio.tools entries - github_gitlab_tools_with_publications.csv" \
+  --output-dir results/batch
 ```
 
 Add `--dry-run` to list and validate entries without running evaluations or
 creating output. Ingested data is saved in `results/batch/raw/`, with CSV row
-numbers and bio.tools IDs in the filenames. No score files are saved. Existing
-data files are skipped and never overwritten; failed evaluations do not leave
-a data file to be mistaken for a completed run. Use a separate output directory
-for each CSV.
+numbers and bio.tools IDs in the filenames, as soon as each tool is done. No
+score files are saved. Existing data files are skipped and never overwritten,
+so an interrupted batch continues where it stopped when run again; failed
+evaluations do not leave a data file to be mistaken for a completed run. Use a
+separate output directory for each CSV. Each tool's log is written to
+`results/batch/logs/`, named like its data file; the terminal shows one line
+per tool as it starts and finishes.
+
+Several tools are evaluated at once (`--jobs`, 4 by default), so the quick,
+network-bound sources of some tools overlap with the slow Docker checks of
+others. The resqui checks of all tools share one limit on resqui processes:
+`MATURITY_METER_RESQUI_PARALLEL`, by default one per configured plugin. Raise
+`--jobs` to keep Docker busy; lower `MATURITY_METER_RESQUI_PARALLEL` if Docker
+runs short of memory or CPU. Requests to the public FAIR-Checker service are
+sent one at a time, since simultaneous requests can mix up its results. With a
+GitHub token, the batch checks GitHub's
+rate limit before each GitHub tool and waits for the reset when fewer than 500
+requests are left, instead of letting sources fail; without a token, most
+GitHub tools will lack data.
 
 GitHub links to releases, files or other paths inside a repository are skipped
 rather than assuming their enclosing repository is the correct one. Invalid or
 unsupported URLs and failed evaluations are reported, processing continues,
-and the script returns a nonzero exit status if any errors occurred. GitLab
+and the command returns a nonzero exit status if any errors occurred. GitLab
 subgroup repository paths are supported. Individual evaluations may take
 several minutes and require network access and Docker.
 
