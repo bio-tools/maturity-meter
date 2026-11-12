@@ -13,6 +13,7 @@ import contextlib
 import json
 import logging
 import os
+import re
 import shutil
 import signal
 import sys
@@ -26,8 +27,13 @@ from maturity_meter.external.protocols import Ingestor
 logger = logging.getLogger(__name__)
 
 DEFAULT_CONFIG = Path(__file__).parent / "resqui_config.json"
-TIMEOUT_SECONDS = 600
+TIMEOUT_SECONDS = 3600
 LABEL = "maturity-meter-run"
+_CHECKING_SOFTWARE_NAMES = {
+    "Gitleaks": "GitLeaks",
+    "OpenSSFScorecard": "OpenSSF Scorecard",
+}
+_ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
 
 # Placed first on resqui's PATH. resqui starts containers with a bare
 # ``docker run``, so add --rm (no leftovers) and a label (to find them later).
@@ -146,6 +152,27 @@ class ResquiIngestor(Ingestor):
             f"resqui ran {len(assessment.get('checks', []))} checks on "
             f"{self.repository_url}"
         )
+        configured = json.loads(self.config.read_text())["indicators"]
+        present = {
+            (
+                check.get("checkingSoftware", {}).get("name"),
+                check.get("assessesIndicator", {}).get("@id"),
+            )
+            for check in assessment.get("checks", [])
+        }
+        missing = [
+            f"{item['plugin']}.{item['name']}"
+            for item in configured
+            if (
+                _CHECKING_SOFTWARE_NAMES.get(item["plugin"], item["plugin"]),
+                item["@id"],
+            )
+            not in present
+        ]
+        if missing:
+            logger.warning(
+                "resqui did not report configured checks: %s", ", ".join(missing)
+            )
         return assessment
 
     async def _run(self, workdir: Path, env: dict[str, str]) -> dict[str, Any]:
@@ -167,7 +194,7 @@ class ResquiIngestor(Ingestor):
         process = await asyncio.create_subprocess_exec(
             *command,
             stdin=asyncio.subprocess.DEVNULL,
-            stdout=asyncio.subprocess.DEVNULL,
+            stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=workdir,
             env=env,
@@ -175,7 +202,7 @@ class ResquiIngestor(Ingestor):
             start_new_session=True,
         )
         try:
-            _, stderr = await asyncio.wait_for(
+            stdout, stderr = await asyncio.wait_for(
                 process.communicate(), timeout=TIMEOUT_SECONDS
             )
         except BaseException as error:
@@ -189,11 +216,33 @@ class ResquiIngestor(Ingestor):
                 ) from error
             raise
 
+        def redact(text: str) -> str:
+            return (
+                text.replace(self.github_token, "[redacted]")
+                if self.github_token
+                else text
+            )
+
+        stdout_text = _ANSI_ESCAPE.sub("", stdout.decode(errors="replace"))
+        failures = [
+            redact(line.strip())
+            for line in stdout_text.splitlines()
+            if (
+                re.search(r"✖\s+[A-Za-z_][\w.]*:", line)
+                or "⚠" in line
+                or line.strip().startswith("Error")
+            )
+        ]
         if process.returncode != 0 or not output.exists():
-            # The last stderr line is the exception message of a crash.
             lines = stderr.decode(errors="replace").strip().splitlines()
-            detail = lines[-1] if lines else "no error output"
+            detail = (
+                redact(lines[-1])
+                if lines
+                else (failures[-1] if failures else "no error output")
+            )
             raise ResquiError(f"resqui failed (exit {process.returncode}): {detail}")
+        if failures:
+            logger.warning("resqui reported check failures: %s", "; ".join(failures))
         try:
             assessment: dict[str, Any] = json.loads(output.read_text())
         except ValueError as error:

@@ -1,10 +1,264 @@
 {
   "indicators": [
-    { "name": "has_citation", "plugin": "CFFConvert", "@id": "https://w3id.org/everse/i/indicators/software_has_citation" },
-    { "name": "has_no_security_leak", "plugin": "Gitleaks", "@id": "https://w3id.org/everse/i/indicators/no_leaked_credentials" },
-    { "name": "has_license", "plugin": "HowFairIs", "@id": "https://w3id.org/everse/i/indicators/software_has_license" },
-    { "name": "dependency_management", "plugin": "OpenSSFScorecard", "@id": "https://w3id.org/everse/i/indicators/dependency_management" },
-    { "name": "has_ci_tests", "plugin": "OpenSSFScorecard", "@id": "https://w3id.org/everse/i/indicators/has_ci-tests" },
-    { "name": "human_code_review_requirement", "plugin": "OpenSSFScorecard", "@id": "https://w3id.org/everse/i/indicators/human_code_review_requirement" }
+    {
+      "name": "has_citation",
+      "plugin": "CFFConvert",
+      "@id": "https://w3id.org/everse/i/indicators/software_has_citation"
+    },
+    {
+      "name": "has_no_security_leak",
+      "plugin": "Gitleaks",
+      "@id": "https://w3id.org/everse/i/indicators/no_leaked_credentials"
+    },
+    {
+      "name": "has_license",
+      "plugin": "HowFairIs",
+      "@id": "https://w3id.org/everse/i/indicators/software_has_license"
+    },
+    {
+      "name": "dependency_management",
+      "plugin": "OpenSSFScorecard",
+      "@id": "https://w3id.org/everse/i/indicators/dependency_management"
+    },
+    {
+      "name": "has_ci_tests",
+      "plugin": "OpenSSFScorecard",
+      "@id": "https://w3id.org/everse/i/indicators/has_ci-tests"
+    },
+    {
+      "name": "human_code_review_requirement",
+      "plugin": "OpenSSFScorecard",
+      "@id": "https://w3id.org/everse/i/indicators/human_code_review_requirement"
+    },
+    {
+      "name": "unique_ids",
+      "plugin": "FAIRChecker",
+      "@id": "https://w3id.org/fair/principles/terms/F1A"
+    },
+    {
+      "name": "persistent_ids",
+      "plugin": "FAIRChecker",
+      "@id": "https://w3id.org/fair/principles/terms/F1B"
+    },
+    {
+      "name": "structured_metadata",
+      "plugin": "FAIRChecker",
+      "@id": "https://w3id.org/fair/principles/terms/F2A"
+    },
+    {
+      "name": "shared_vocabularies_for_metadata",
+      "plugin": "FAIRChecker",
+      "@id": "https://w3id.org/fair/principles/terms/F2B"
+    },
+    {
+      "name": "machine_readable_format",
+      "plugin": "FAIRChecker",
+      "@id": "https://w3id.org/fair/principles/terms/I1"
+    },
+    {
+      "name": "use_shared_ontologies",
+      "plugin": "FAIRChecker",
+      "@id": "https://w3id.org/fair/principles/terms/I2"
+    },
+    {
+      "name": "external_links",
+      "plugin": "FAIRChecker",
+      "@id": "https://w3id.org/fair/principles/terms/I3"
+    },
+    {
+      "name": "license_metadata",
+      "plugin": "FAIRChecker",
+      "@id": "https://w3id.org/fair/principles/terms/R11"
+    },
+    {
+      "name": "software_has_license_for_file_types",
+      "plugin": "HowFairIs",
+      "@id": "https://w3id.org/everse/i/indicators/software_has_license_for_file_types"
+    },
+    {
+      "name": "has_published_package",
+      "plugin": "OpenSSFScorecard",
+      "@id": "https://w3id.org/everse/i/indicators/has_published_package"
+    },
+    {
+      "name": "project_is_active",
+      "plugin": "OpenSSFScorecard",
+      "@id": "https://w3id.org/everse/i/indicators/project_is_active"
+    },
+    {
+      "name": "no_critical_vulnerability",
+      "plugin": "OpenSSFScorecard",
+      "@id": "https://w3id.org/everse/i/indicators/no_critical_vulnerability"
+    },
+    {
+      "name": "static_analysis_common_vulnerabilities",
+      "plugin": "OpenSSFScorecard",
+      "@id": "https://w3id.org/everse/i/indicators/static_analysis_common_vulnerabilities"
+    },
+    {
+      "name": "uses_fuzzing",
+      "plugin": "OpenSSFScorecard",
+      "@id": "https://w3id.org/everse/i/indicators/uses_fuzzing"
+    },
+    {
+      "name": "has_no_binary_artifacts",
+      "plugin": "OpenSSFScorecard",
+      "@id": "https://w3id.org/everse/i/indicators/has_no_binary_artifacts"
+    },
+    {
+      "name": "has_no_linting_issues",
+      "plugin": "SuperLinter",
+      "@id": "https://w3id.org/everse/i/indicators/has_no_linting_issues"
+    },
+    {
+      "name": "maintainability_index_ok",
+      "plugin": "ASTMetrics",
+      "@id": "https://w3id.org/everse/i/indicators/maintainability_index_ok"
+    },
+    {
+      "name": "persistent_and_unique_identifier",
+      "plugin": "RSFC",
+      "@id": "https://w3id.org/everse/i/indicators/persistent_and_unique_identifier"
+    },
+    {
+      "name": "requirements_specified",
+      "plugin": "RSFC",
+      "@id": "https://w3id.org/everse/i/indicators/requirements_specified"
+    },
+    {
+      "name": "has_releases",
+      "plugin": "RSFC",
+      "@id": "https://w3id.org/everse/i/indicators/has_releases"
+    },
+    {
+      "name": "software_has_citation",
+      "plugin": "RSFC",
+      "@id": "https://w3id.org/everse/i/indicators/software_has_citation"
+    },
+    {
+      "name": "software_has_license",
+      "plugin": "RSFC",
+      "@id": "https://w3id.org/everse/i/indicators/software_has_license"
+    },
+    {
+      "name": "software_has_documentation",
+      "plugin": "RSFC",
+      "@id": "https://w3id.org/everse/i/indicators/software_has_documentation"
+    },
+    {
+      "name": "descriptive_metadata",
+      "plugin": "RSFC",
+      "@id": "https://w3id.org/everse/i/indicators/descriptive_metadata"
+    },
+    {
+      "name": "codemeta_completeness",
+      "plugin": "RSFC",
+      "@id": "https://w3id.org/everse/i/indicators/codemeta_completeness"
+    },
+    {
+      "name": "versioning_standards_use",
+      "plugin": "RSFC",
+      "@id": "https://w3id.org/everse/i/indicators/versioning_standards_use"
+    },
+    {
+      "name": "version_control_use",
+      "plugin": "RSFC",
+      "@id": "https://w3id.org/everse/i/indicators/version_control_use"
+    },
+    {
+      "name": "software_has_tests",
+      "plugin": "RSFC",
+      "@id": "https://w3id.org/everse/i/indicators/software_has_tests"
+    },
+    {
+      "name": "repository_workflows",
+      "plugin": "RSFC",
+      "@id": "https://w3id.org/everse/i/indicators/repository_workflows"
+    },
+    {
+      "name": "archived_in_software_heritage",
+      "plugin": "RSFC",
+      "@id": "https://w3id.org/everse/i/indicators/archived_in_software_heritage"
+    },
+    {
+      "name": "archived_in_scholarly_repository",
+      "plugin": "RSFC",
+      "@id": "https://w3id.org/everse/i/indicators/archived_in_scholarly_repository"
+    },
+    {
+      "name": "has_contribution_guidelines",
+      "plugin": "RSFC",
+      "@id": "https://w3id.org/everse/i/indicators/has_contribution_guidelines"
+    },
+    {
+      "name": "software_is_containerized",
+      "plugin": "RSFC",
+      "@id": "https://w3id.org/everse/i/indicators/software_is_containerized"
+    },
+    {
+      "name": "has_active_communication_channels",
+      "plugin": "RSFC",
+      "@id": "https://w3id.org/everse/i/indicators/has_active_communication_channels"
+    },
+    {
+      "name": "unique_identifier",
+      "plugin": "OEBFAIR",
+      "@id": "https://w3id.org/everse/i/indicators/persistent_and_unique_identifier"
+    },
+    {
+      "name": "has_package",
+      "plugin": "OEBFAIR",
+      "@id": "https://w3id.org/everse/i/indicators/has_published_package"
+    },
+    {
+      "name": "has_license",
+      "plugin": "OEBFAIR",
+      "@id": "https://w3id.org/everse/i/indicators/software_has_license"
+    },
+    {
+      "name": "has_documentation",
+      "plugin": "OEBFAIR",
+      "@id": "https://w3id.org/everse/i/indicators/software_has_documentation"
+    },
+    {
+      "name": "has_releases",
+      "plugin": "OEBFAIR",
+      "@id": "https://w3id.org/everse/i/indicators/has_releases"
+    },
+    {
+      "name": "descriptive_metadata",
+      "plugin": "OEBFAIR",
+      "@id": "https://w3id.org/everse/i/indicators/descriptive_metadata"
+    },
+    {
+      "name": "listed_in_registry",
+      "plugin": "OEBFAIR",
+      "@id": "https://w3id.org/everse/i/indicators/listed_in_registry"
+    },
+    {
+      "name": "versioning_standards_use",
+      "plugin": "OEBFAIR",
+      "@id": "https://w3id.org/everse/i/indicators/versioning_standards_use"
+    },
+    {
+      "name": "version_control_use",
+      "plugin": "OEBFAIR",
+      "@id": "https://w3id.org/everse/i/indicators/version_control_use"
+    },
+    {
+      "name": "software_has_tests",
+      "plugin": "OEBFAIR",
+      "@id": "https://w3id.org/everse/i/indicators/software_has_tests"
+    },
+    {
+      "name": "repository_workflows",
+      "plugin": "OEBFAIR",
+      "@id": "https://w3id.org/everse/i/indicators/repository_workflows"
+    },
+    {
+      "name": "archived_in_software_heritage",
+      "plugin": "OEBFAIR",
+      "@id": "https://w3id.org/everse/i/indicators/archived_in_software_heritage"
+    }
   ]
 }
