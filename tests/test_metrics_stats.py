@@ -1,17 +1,90 @@
 """Tests for the PDF metrics statistics report."""
 
 import json
+import math
+import re
+import shutil
 import subprocess
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from metrics_report import Metric
-from metrics_stats import Series, classify, load_series, similarities
+from metrics_report import EVERSE, Metric
+from metrics_stats import (
+    Series,
+    classify,
+    load_series,
+    similarities,
+    summary_pages,
+    summary_rows,
+    summary_value,
+)
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "metrics_stats.py"
+
+
+def test_summary_values_cover_all_metric_types():
+    metric = Metric("source", "metric")
+    assert summary_value(Series(metric, "numeric", {"a": 0, "b": 4})) == (
+        "Median 2; range 0 to 4"
+    )
+    assert summary_value(Series(metric, "boolean", {"a": True, "b": False})) == (
+        "True 1; false 1"
+    )
+    assert summary_value(Series(metric, "categorical", {"a": "x", "b": "y"})) == (
+        "2 distinct; mode x (1)"
+    )
+    assert summary_value(Series(metric, "excluded", {}, "No results")) == (
+        "Excluded: No results"
+    )
+    grouped = Series(
+        metric,
+        "publication",
+        {"a": '[{"value":"Y"},{"value":"N"}]', "b": '[{"value":"Y"}]'},
+    )
+    assert summary_value(grouped) == "Publication observations: N 1, Y 2"
+    rows = summary_rows([grouped, Series(metric, "excluded", {}, "No results")], 3)
+    assert len(rows) == 2
+    assert {row[3] for row in rows} == {"2/3\n(66.7%)", "0/3\n(0.0%)"}
+    positional = Series(metric, "numeric", {"a": 0}, comparable=False)
+    assert "positional, not compared" in summary_rows([positional], 3)[0][4]
+
+
+def test_summary_paginates_and_includes_every_identifier(tmp_path):
+    pytest.importorskip("matplotlib")
+    if not shutil.which("pdftotext"):
+        pytest.skip("pdftotext unavailable")
+    from matplotlib.backends.backend_pdf import PdfPages
+
+    series = [
+        Series(Metric("source", f"identifier_{i:03d}"), "numeric", {"a": i})
+        for i in range(60)
+    ]
+    long_identifier = "long_" + "abcdefghij" * 250
+    series.append(Series(Metric("source", long_identifier), "numeric", {"a": 0}))
+    output = tmp_path / "summary.pdf"
+    with PdfPages(output) as pdf:
+        summary_pages(pdf, series, 1, datetime(2023, 1, 1, tzinfo=UTC))
+    result = subprocess.run(
+        ["pdftotext", "-layout", str(output), "-"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert result.stdout.count("Metric summary") > 1
+    assert result.stdout.count("Metric / identifier") > 1
+    for i in range(60):
+        assert result.stdout.count(f"[identifier_{i:03d}]") == 1
+    identifier_text = result.stdout.split("[long_", 1)[1].split("]", 1)[0]
+    identifier_lines = [
+        line.strip()
+        for line in identifier_text.splitlines()
+        if re.fullmatch(r"[a-j]+", line.strip())
+    ]
+    assert "long_" + "".join(identifier_lines) == long_identifier
 
 
 def saved(repo, value=1):
@@ -35,6 +108,147 @@ def test_classification_and_grouped_exclusion(tmp_path):
     grouped = next(s for s in series if s.metric.source == "openalex")
     assert grouped.kind == "excluded"
     assert "grouped" in grouped.reason
+
+
+def test_compatibility_types_are_boolean_series(tmp_path):
+    data = saved("a")
+    data["biotools"] = {"function": []}
+    data["repository"]["files"] = ["Dockerfile", "setup.py"]
+    data["rsec"] = {"files": ["tool.galaxy.json"]}
+    path = tmp_path / "input.json"
+    path.write_text(json.dumps(data))
+    series, _ = load_series([path])
+    by_id = {s.metric.identifier: s for s in series}
+    for name, value in (
+        ("input_formats_present", False),
+        ("container_distribution_file", True),
+        ("conda_distribution_file", False),
+        ("python_distribution_file", True),
+        ("rsec_galaxy", True),
+    ):
+        assert by_id[name].kind == "boolean"
+        assert list(by_id[name].values.values()) == [value]
+
+
+def test_security_file_presence_is_a_boolean_series(tmp_path):
+    data = saved("a")
+    data["repository"].update(
+        {"files": [".github/SECURITY.md"], "files_truncated": True}
+    )
+    path = tmp_path / "input.json"
+    path.write_text(json.dumps(data))
+    series, _ = load_series([path])
+    by_id = {s.metric.identifier: s for s in series}
+    assert by_id["has_security_policy"].kind == "boolean"
+    assert list(by_id["has_security_policy"].values.values()) == [True]
+    assert "has_gitignore" not in by_id
+
+
+def test_sustainability_values_use_shared_reference(tmp_path):
+    paths = []
+    for name in ("a", "b"):
+        data = saved(name)
+        data["repository"].update(
+            {
+                "repo": {"pushed_at": "2023-01-08T00:00:00Z"},
+                "contributors": [
+                    {"name": "a", "contributions": 1},
+                    {"name": "b", "contributions": 1},
+                ],
+                "closed_issues": [
+                    {
+                        "created_at": "2023-01-01T00:00:00Z",
+                        "closed_at": "2023-01-03T00:00:00Z",
+                    }
+                ],
+            }
+        )
+        path = tmp_path / f"{name}.json"
+        path.write_text(json.dumps(data))
+        paths.append(path)
+    series, _ = load_series(paths, as_of=datetime(2023, 1, 10, tzinfo=UTC))
+    by_id = {s.metric.identifier: s for s in series}
+    for name, value in (
+        ("days_since_last_push", 2),
+        ("avg_issue_close_time_days", 2),
+        ("inverse_simpson_index", 2),
+    ):
+        assert by_id[name].kind == "numeric"
+        assert list(by_id[name].values.values()) == [value, value]
+
+
+def test_superlinter_excluded_when_missing_and_charted_when_available(tmp_path):
+    data = saved("a")
+    path = tmp_path / "input.json"
+    path.write_text(json.dumps(data))
+    series, _ = load_series([path])
+    lint = next(s for s in series if s.metric.source == "SuperLinter")
+    assert lint.kind == "excluded"
+    assert lint.values == {}
+    assert "No SuperLinter results" in lint.reason
+    data["quality_checks"] = {
+        "checks": [
+            {
+                "assessesIndicator": {"@id": f"{EVERSE}has_no_linting_issues"},
+                "checkingSoftware": {"name": "SuperLinter"},
+                "output": "true",
+            }
+        ]
+    }
+    path.write_text(json.dumps(data))
+    series, _ = load_series([path])
+    lint_series = [s for s in series if s.metric.source == "SuperLinter"]
+    assert len(lint_series) == 1
+    assert lint_series[0].kind == "boolean"
+    assert list(lint_series[0].values.values()) == [True]
+
+
+def test_publication_open_access_charted_without_comparison(tmp_path):
+    data = saved("a")
+    data["europe_pmc"] = {
+        "10.1/a": {"isOpenAccess": "Y"},
+        "10.1/b": {"isOpenAccess": "N"},
+    }
+    path = tmp_path / "input.json"
+    path.write_text(json.dumps(data))
+    series, _ = load_series([path])
+    oa = next(s for s in series if s.metric.identifier == "publication.isOpenAccess")
+    assert oa.kind == "publication"
+    assert not oa.comparable
+    assert {v["value"] for group in oa.values.values() for v in json.loads(group)} == {
+        "Y",
+        "N",
+    }
+    assert "Associated publications and open access" in __import__(
+        "metrics_stats"
+    ).label(oa.metric)
+
+
+def test_coverage_correlations_do_not_average_grouped_open_access():
+    pytest.importorskip("pandas")
+    pytest.importorskip("matplotlib")
+    from batch_results_plot import _to_number
+
+    group = '[{"value":"Y"},{"value":"N"}]'
+    assert math.isnan(_to_number(group, "Associated publications and open access"))
+
+
+def test_coverage_categories_skip_blanks_and_preserve_shared_metrics():
+    pd = pytest.importorskip("pandas")
+    pytest.importorskip("matplotlib")
+    from batch_results_plot import category_map
+
+    metrics = pd.DataFrame(
+        {
+            "Metric": ["shared", "other", "unclassified"],
+            "Indicator category": ["Fairness, Security", "Other", float("nan")],
+        }
+    )
+    assert category_map(metrics) == {
+        "Fairness": ["shared"],
+        "Other": ["other"],
+        "Security": ["shared"],
+    }
 
 
 def test_incompatible_and_repeated_checks_excluded(tmp_path):
@@ -146,6 +360,15 @@ def test_pdf_cli_and_invalid_input(tmp_path):
         check=True,
     )
     assert output.read_bytes().startswith(b"%PDF-")
+    if shutil.which("pdftotext"):
+        first_page = subprocess.run(
+            ["pdftotext", "-f", "1", "-l", "1", str(output), "-"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+        assert "Metric summary" in first_page
+        assert "[stars]" in first_page
     bad = tmp_path / "bad.json"
     bad.write_text('{"repository": {}}')
     failed = tmp_path / "failed.pdf"

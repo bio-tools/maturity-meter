@@ -44,8 +44,11 @@ def category_map(metrics):
     (e.g. 'Compatibility, Security, Sustainability') are counted in each."""
     out = {}
     for metric, cats in zip(metrics["Metric"], metrics["Indicator category"]):
+        if pd.isna(cats):
+            continue
         for cat in str(cats).split(","):
-            out.setdefault(cat.strip(), []).append(metric)
+            if cat.strip():
+                out.setdefault(cat.strip(), []).append(metric)
     return dict(sorted(out.items()))
 
 
@@ -125,6 +128,8 @@ def _to_number(v, metric):
     if m:
         return float(m.group(1))
     if s.startswith("["):
+        if "Associated publications and open access" in metric:
+            return np.nan
         try:
             vals = [_to_number(e.get("value"), metric) for e in json.loads(s) if isinstance(e, dict)]
         except (ValueError, AttributeError):
