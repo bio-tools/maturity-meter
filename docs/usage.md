@@ -139,8 +139,7 @@ They require Docker, image downloads, network access and (for some checks) a
 GitHub token; ASTMetrics and HowFairIs install Python tools. Runs can be much
 slower. To save time, each plugin's checks run in their own resqui process,
 all plugins at once (set `MATURITY_METER_RESQUI_PARALLEL` to run fewer at a
-time); the repository is cloned once and shared by the processes, and
-each process has a 10-minute timeout. A plugin whose run fails is skipped and the other plugins' checks
+time); each process has a 10-minute timeout. A plugin whose run fails is skipped and the other plugins' checks
 are kept. Re-run the evaluation
 without supplying previously saved
 `quality_checks` to collect the new results: `--data` reuses a supplied
@@ -258,7 +257,8 @@ subset works, including none.
 ```
 
 The other keys are `openebench`, `quality_checks`, `rsec` and `code_metrics`
-(supplying `code_metrics` avoids cloning the repository). `europe_pmc` and
+(the repository is cloned once per evaluation, and only if `quality_checks`
+or `code_metrics` is not supplied). `europe_pmc` and
 `openalex` are keyed by DOI (in any common form): DOIs in `dois` without a
 supplied record are fetched, and supplied DOIs not in `dois` are kept. `edam`
 works the same way, keyed by EDAM format IRI.
