@@ -16,6 +16,7 @@ import httpx
 from maturity_meter.config import get_settings
 from maturity_meter.external import (
     BiotoolsIngestor,
+    CloneError,
     CodeMetricsError,
     CodeMetricsIngestor,
     EDAMIngestor,
@@ -28,7 +29,9 @@ from maturity_meter.external import (
     ResquiError,
     ResquiIngestor,
     RSEcIngestor,
+    SharedClone,
     formats_in_biotools,
+    shared_clone,
 )
 from maturity_meter.external.http import shared_client
 from maturity_meter.external.protocols import Ingestor
@@ -123,7 +126,13 @@ def repository_ingestor(request: EvaluationRequest) -> Ingestor:
 
 
 # Expected ways for an optional source to be unavailable.
-_UNAVAILABLE = (httpx.HTTPError, EuropePMCNotFoundError, ResquiError, CodeMetricsError)
+_UNAVAILABLE = (
+    httpx.HTTPError,
+    EuropePMCNotFoundError,
+    ResquiError,
+    CodeMetricsError,
+    CloneError,
+)
 
 
 async def _optional[T](source: str, awaitable: Awaitable[T]) -> T | None:
@@ -165,6 +174,21 @@ async def _given[T](value: T) -> T:
     return value
 
 
+async def _quality_checks(
+    request: EvaluationRequest, clone: SharedClone
+) -> dict[str, Any]:
+    return await ResquiIngestor(
+        request.repository,
+        _github_token(),
+        parallel=get_settings().resqui_parallel,
+        mirror=await clone.mirror(),
+    ).fetch()
+
+
+async def _code_metrics(clone: SharedClone) -> dict[str, Any]:
+    return await CodeMetricsIngestor(await clone.checkout()).fetch()
+
+
 def _supplied_or[T](
     value: T | None, fetch: Callable[[], Awaitable[T | None]]
 ) -> Awaitable[T | None]:
@@ -175,7 +199,8 @@ def _supplied_or[T](
 async def ingest(request: EvaluationRequest) -> IngestedData:
     """Fetch all external metadata for ``request`` concurrently.
 
-    All requests share one connection pool for the whole evaluation.
+    All requests share one connection pool for the whole evaluation, and the
+    sources that need the repository's files share one clone of it.
 
     Parameters
     ----------
@@ -193,11 +218,11 @@ async def ingest(request: EvaluationRequest) -> IngestedData:
         If the repository cannot be fetched. Failures of optional sources are
         logged and reported as ``None`` instead.
     """
-    async with shared_client():
-        return await _ingest(request)
+    async with shared_client(), shared_clone(request.repository) as clone:
+        return await _ingest(request, clone)
 
 
-async def _ingest(request: EvaluationRequest) -> IngestedData:
+async def _ingest(request: EvaluationRequest, clone: SharedClone) -> IngestedData:
     logger.debug(f"Ingesting metadata for {request.repository}")
     # Supplied data is used as-is; everything missing is fetched.
     supplied = request.data
@@ -225,19 +250,12 @@ async def _ingest(request: EvaluationRequest) -> IngestedData:
             else _none()
         ),
     )
-    # resqui clones the repository and runs Docker checks, so it is by far the
+    # resqui runs Docker checks on the shared clone, so it is by far the
     # slowest source. It only supports GitHub, and degrades to None on failure.
     quality = _supplied_or(
         supplied.quality_checks,
         lambda: (
-            _optional(
-                "resqui",
-                ResquiIngestor(
-                    request.repository,
-                    _github_token(),
-                    parallel=get_settings().resqui_parallel,
-                ).fetch(),
-            )
+            _optional("resqui", _quality_checks(request, clone))
             if request.host == "github.com"
             else _none()
         ),
@@ -251,12 +269,10 @@ async def _ingest(request: EvaluationRequest) -> IngestedData:
             else _none()
         ),
     )
-    # Code metrics shallow-clone the repository, so they take a while.
+    # Code metrics analyse the shared clone, so they take a while.
     code_metrics = _supplied_or(
         supplied.code_metrics,
-        lambda: _optional(
-            "code metrics", CodeMetricsIngestor(request.repository).fetch()
-        ),
+        lambda: _optional("code metrics", _code_metrics(clone)),
     )
     # Per-DOI sources: only DOIs without a supplied record are fetched.
     missing_pmc = [doi for doi in request.dois if doi not in supplied.europe_pmc]
