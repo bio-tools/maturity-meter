@@ -38,6 +38,9 @@ class Settings(BaseSettings):
         without one.
     openalex_api_key : pydantic.SecretStr | None
         Optional OpenAlex API key for higher rate limits.
+    resqui_parallel : int | None
+        Maximum number of resqui plugins whose checks run at the same time.
+        All configured plugins run at once when omitted.
     """
 
     model_config = SettingsConfigDict(
@@ -58,6 +61,7 @@ class Settings(BaseSettings):
     github_token: SecretStr | None = None
     gitlab_token: SecretStr | None = None
     openalex_api_key: SecretStr | None = None
+    resqui_parallel: int | None = Field(default=None, ge=1)
 
     @field_validator("server_host")
     @classmethod
