@@ -93,6 +93,33 @@ def test_positional_openebench_values_not_compared(tmp_path):
     assert not similarities(series, 3)["numeric"]
 
 
+def test_missing_fairchecker_id_warns_and_keeps_other_scores(tmp_path, capsys):
+    data = saved("a")
+    data["fair_checker"] = [
+        {
+            "@id": "https://example.org/result/missing",
+            "@type": ["https://w3id.org/ftr#TestResult"],
+            "https://w3id.org/ftr#outputFromTest": [
+                {"@id": f"https://fair-checker.example/test/{identifier}"}
+            ],
+            "http://www.w3.org/ns/prov#value": [{"@value": value}],
+        }
+        for identifier, value in (("None", 2), ("F1A", 0))
+    ]
+    path = tmp_path / "input.json"
+    path.write_text(json.dumps(data))
+    series, count = load_series([path])
+    assert count == 1
+    assert any(
+        s.metric.source == "FAIRChecker API" and s.metric.identifier == "F1A"
+        for s in series
+    )
+    assert not any(s.metric.identifier == "None" for s in series)
+    warning = capsys.readouterr().err
+    assert str(path) in warning
+    assert "https://example.org/result/missing" in warning
+
+
 def test_duplicate_tools_rejected_and_shared_repositories_allowed(tmp_path):
     paths = [tmp_path / "a.json", tmp_path / "b.json"]
     for path in paths:

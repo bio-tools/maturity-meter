@@ -104,6 +104,9 @@ OpenAlex citation counts and FWCI and Europe PMC citation counts and
 open-access fields. The official FAIR-Checker API's reported numeric test
 values appear under `FAIRChecker API`, separate from `FAIRChecker` outputs in
 older resqui assessments, which were transformed to true/false/indeterminate.
+When reporting saved data, a FAIR-Checker result without a usable test ID is
+skipped with a warning identifying the file and result. Other identifiable
+results are preserved; no metric is inferred for the skipped result.
 The API's raw JSON-LD is saved as `fair_checker`; missing or failed assessments
 are null. Existing `--data` files remain usable, and a supplied `fair_checker`
 assessment is reused. The API receives the repository URL, including for GitLab

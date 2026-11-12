@@ -162,6 +162,38 @@ def test_direct_fairchecker_scores_and_legacy_results_are_distinct(tmp_path):
     assert comparison[1][comparison[0].index(legacy)] == "false"
 
 
+def test_missing_fairchecker_id_warns_and_preserves_valid_results(tmp_path):
+    source = tmp_path / "input.json"
+    data = saved_data("test", [], {"files": 4})
+    data["fair_checker"] = [
+        {
+            "@id": "https://example.org/result/missing",
+            "@type": ["https://w3id.org/ftr#TestResult"],
+            "https://w3id.org/ftr#outputFromTest": [
+                {"@id": f"https://fair-checker.example/test/{identifier}"}
+            ],
+            "http://www.w3.org/ns/prov#value": [{"@value": value}],
+        }
+        for identifier, value in (("None", 2), ("F1A", 0))
+    ]
+    source.write_text(json.dumps(data))
+    output = tmp_path / "comparison.ods"
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), str(source), "-o", str(output)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert str(source) in result.stderr
+    assert "https://example.org/result/missing" in result.stderr
+    assert "no usable test ID" in result.stderr
+    details, comparison = read_tables(output)
+    labels = {(row[1], row[2]): row[0] for row in details[1:]}
+    assert ("FAIRChecker API", "None") not in labels
+    assert comparison[1][comparison[0].index(labels["FAIRChecker API", "F1A"])] == "0"
+    assert comparison[1][comparison[0].index(labels["Lizard", "files"])] == "4"
+
+
 def test_publications_share_columns_and_retain_values(tmp_path):
     first = saved_data("first", [], {})
     second = saved_data("second", [], {})

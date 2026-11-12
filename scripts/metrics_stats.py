@@ -57,7 +57,7 @@ def load_series(paths: list[Path]) -> tuple[list[Series], int]:
             data = json.loads(path.read_text(encoding="utf-8"))
             if not isinstance(data, dict):
                 raise ValueError("expected a JSON object")
-            metrics = reported_metrics(data)
+            metrics = reported_metrics(data, input_path=path)
             repository = data["request"]["repository"]
             biotools_id = data["request"].get("biotools_id")
             if biotools_id is not None and (

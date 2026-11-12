@@ -315,7 +315,9 @@ def metric_description(metric: Metric) -> str:
     )
 
 
-def reported_metrics(data: dict[str, Any]) -> dict[Metric, str | int | float | bool]:
+def reported_metrics(
+    data: dict[str, Any], *, input_path: Path | None = None
+) -> dict[Metric, str | int | float | bool]:
     """Extract reported values without calculating or inferring measurements."""
     result: dict[Metric, str | int | float | bool] = {}
     publication_values: dict[Metric, list[dict[str, Any]]] = {}
@@ -410,7 +412,13 @@ def reported_metrics(data: dict[str, Any]) -> dict[Metric, str | int | float | b
             or "/test/" not in test
             or test.rsplit("/test/", 1)[-1] in ("", "None")
         ):
-            raise ValueError("FAIR-Checker test result has no usable test ID")
+            print(
+                f"Warning: {input_path or request['repository']}: skipping "
+                f"FAIR-Checker result {node.get('@id', '<no result ID>')}: "
+                "no usable test ID",
+                file=sys.stderr,
+            )
+            continue
         if values:
             if not isinstance(values[0], dict) or "@value" not in values[0]:
                 raise ValueError("FAIR-Checker test result has an invalid value")
@@ -557,7 +565,7 @@ def write_report(inputs: list[Path], output: Path) -> None:
         if not isinstance(data, dict):
             raise ValueError(f"{path}: expected a JSON object")
         try:
-            metrics = reported_metrics(data)
+            metrics = reported_metrics(data, input_path=path)
         except (ValueError, TypeError, AttributeError, IndexError) as error:
             raise ValueError(f"{path}: invalid ingestion data: {error}") from error
         datasets.append((f"{data['request']['repository']} ({path})", metrics))
