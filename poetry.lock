@@ -1819,7 +1819,7 @@ use-chardet-on-py3 = ["chardet (>=3.0.2,<8)"]
 
 [[package]]
 name = "resqui"
-version = "0.1.dev335+g8c3bad1ad"
+version = "0.1.dev341+gaec329402"
 description = "EVERSE Research Software Quality Indicators"
 optional = false
 python-versions = ">=3.9"
@@ -1839,7 +1839,7 @@ docs = ["mkdocs", "mkdocstrings[python]"]
 type = "git"
 url = "https://github.com/bio-tools/QualityPipelines.git"
 reference = "main"
-resolved_reference = "aec3294020099b5d67cd646fb1d2ef07d3424827"
+resolved_reference = "ada01bee0018a6ddfd728ba6b4b14e1e2794809c"
 
 [[package]]
 name = "rich"
