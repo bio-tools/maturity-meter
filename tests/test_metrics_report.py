@@ -89,6 +89,7 @@ def test_report_preserves_reported_values_and_aligns_sources(tmp_path):
         "Identifier",
         "Expected range",
         "Description",
+        "Indicator category",
     ]
     codes = {(row[1], row[2]): row[0] for row in details[1:]}
     assert all(row[4] for row in details[1:])
