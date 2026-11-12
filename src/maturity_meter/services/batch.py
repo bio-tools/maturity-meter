@@ -7,7 +7,8 @@ it stopped: tools that already have a data file are skipped.
 
 A batch is more efficient than evaluating the tools one by one:
 
-- Several tools are in progress at once (``jobs``), so the quick, network-bound
+- Several tools are in progress at once (``jobs``, by default
+  ``MATURITY_METER_BATCH_JOBS``), so the quick, network-bound
   sources of one tool overlap with the slow Docker checks of another.
 - The resqui checks of all tools share one limit on resqui processes
   (``MATURITY_METER_RESQUI_PARALLEL``, by default one tool's worth), which keeps
@@ -47,7 +48,6 @@ from maturity_meter.services.ingestion import ingest
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_JOBS = 4
 # GitHub requests that must be left before a GitHub tool starts; one tool's
 # sources and resqui checks (Scorecard in particular) can use hundreds.
 GITHUB_RESERVE = 500
@@ -381,7 +381,7 @@ async def evaluate_batch(
     rows: list[BatchRow],
     output_dir: Path,
     *,
-    jobs: int = DEFAULT_JOBS,
+    jobs: int | None = None,
     dry_run: bool = False,
     report: Callable[[BatchEvent], None] = lambda event: None,
 ) -> BatchSummary:
@@ -398,8 +398,9 @@ async def evaluate_batch(
         Rows from :func:`read_csv`.
     output_dir : pathlib.Path
         Directory for the data and log files; created if needed.
-    jobs : int, default=DEFAULT_JOBS
-        Number of tools in progress at the same time.
+    jobs : int, optional
+        Number of tools in progress at the same time. Defaults to the
+        ``batch_jobs`` setting (``MATURITY_METER_BATCH_JOBS``).
     dry_run : bool, default=False
         Only report what would be evaluated; create nothing.
     report : callable, optional
@@ -410,6 +411,9 @@ async def evaluate_batch(
     BatchSummary
         What the batch did.
     """
+    settings = get_settings()
+    if jobs is None:
+        jobs = settings.batch_jobs
     if jobs < 1:
         raise ValueError("jobs must be at least 1")
     summary = BatchSummary()
@@ -441,7 +445,6 @@ async def evaluate_batch(
 
     raw_dir.mkdir(parents=True, exist_ok=True)
     log_dir.mkdir(exist_ok=True)
-    settings = get_settings()
     token = settings.github_token
     budget = _GitHubBudget(token.get_secret_value(), report) if token else None
     if budget is None and any(i.request.host == "github.com" for i in pending):

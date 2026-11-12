@@ -12,7 +12,6 @@ from typing import Annotated
 import typer
 
 from maturity_meter.services.batch import (
-    DEFAULT_JOBS,
     BatchEvent,
     BatchSummary,
     evaluate_batch,
@@ -90,17 +89,19 @@ def command(
         ),
     ],
     jobs: Annotated[
-        int,
+        int | None,
         typer.Option(
             "--jobs",
             "-j",
             min=1,
+            show_default=False,
             help=(
-                "Number of tools in progress at the same time. Their resqui "
-                "checks share one limit, MATURITY_METER_RESQUI_PARALLEL."
+                "Number of tools in progress at the same time (default: "
+                "MATURITY_METER_BATCH_JOBS, or 4). Their resqui checks share one "
+                "limit, MATURITY_METER_RESQUI_PARALLEL."
             ),
         ),
-    ] = DEFAULT_JOBS,
+    ] = None,
     dry_run: Annotated[
         bool,
         typer.Option("--dry-run", help="Validate and list rows without evaluating."),

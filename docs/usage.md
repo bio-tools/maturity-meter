@@ -55,11 +55,12 @@ separate output directory for each CSV. Each tool's log is written to
 `results/batch/logs/`, named like its data file; the terminal shows one line
 per tool as it starts and finishes.
 
-Several tools are evaluated at once (`--jobs`, 4 by default), so the quick,
+Several tools are evaluated at once (`--jobs`, or `MATURITY_METER_BATCH_JOBS`;
+4 by default), so the quick,
 network-bound sources of some tools overlap with the slow Docker checks of
 others. The resqui checks of all tools share one limit on resqui processes:
 `MATURITY_METER_RESQUI_PARALLEL`, by default one per configured plugin. Raise
-`--jobs` to keep Docker busy; lower `MATURITY_METER_RESQUI_PARALLEL` if Docker
+`--jobs` (or `MATURITY_METER_BATCH_JOBS`) to keep Docker busy; lower `MATURITY_METER_RESQUI_PARALLEL` if Docker
 runs short of memory or CPU. Requests to the public FAIR-Checker service are
 sent one at a time, since simultaneous requests can mix up its results. With a
 GitHub token, the batch checks GitHub's
@@ -225,11 +226,12 @@ separate output directory for each CSV. Each tool's log is written to
 `results/batch/logs/`, named like its data file; the terminal shows one line
 per tool as it starts and finishes.
 
-Several tools are evaluated at once (`--jobs`, 4 by default), so the quick,
+Several tools are evaluated at once (`--jobs`, or `MATURITY_METER_BATCH_JOBS`;
+4 by default), so the quick,
 network-bound sources of some tools overlap with the slow Docker checks of
 others. The resqui checks of all tools share one limit on resqui processes:
 `MATURITY_METER_RESQUI_PARALLEL`, by default one per configured plugin. Raise
-`--jobs` to keep Docker busy; lower `MATURITY_METER_RESQUI_PARALLEL` if Docker
+`--jobs` (or `MATURITY_METER_BATCH_JOBS`) to keep Docker busy; lower `MATURITY_METER_RESQUI_PARALLEL` if Docker
 runs short of memory or CPU. Requests to the public FAIR-Checker service are
 sent one at a time, since simultaneous requests can mix up its results. With a
 GitHub token, the batch checks GitHub's
