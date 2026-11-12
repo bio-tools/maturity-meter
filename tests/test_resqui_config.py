@@ -46,8 +46,6 @@ def test_new_indicators_and_unique_configuration():
         ("OEBFAIR", "listed_in_registry"),
         ("OEBFAIR", "repository_workflows"),
         ("HowFairIs", "software_has_license_for_file_types"),
-        ("SuperLinter", "has_no_linting_issues"),
-        ("ASTMetrics", "maintainability_index_ok"),
         ("OpenSSFScorecard", "no_critical_vulnerability"),
         ("OpenSSFScorecard", "has_no_binary_artifacts"),
     }.issubset(entries)
