@@ -7,6 +7,7 @@ should inject values through their platform or secrets manager.
 """
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import AnyHttpUrl, Field, SecretStr, field_validator
@@ -45,6 +46,10 @@ class Settings(BaseSettings):
     batch_jobs : int
         Number of tools a batch evaluates at the same time, unless the
         command's ``--jobs`` option says otherwise.
+    viz_dir : pathlib.Path | None
+        Folder with the Node renderer of the radial mosaic, after
+        ``npm install`` in it. The ``viz/`` folder of the source checkout is
+        used when omitted.
     """
 
     model_config = SettingsConfigDict(
@@ -67,6 +72,7 @@ class Settings(BaseSettings):
     openalex_api_key: SecretStr | None = None
     resqui_parallel: int | None = Field(default=None, ge=1)
     batch_jobs: int = Field(default=4, ge=1)
+    viz_dir: Path | None = None
 
     @field_validator("server_host")
     @classmethod
