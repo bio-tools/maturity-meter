@@ -5,7 +5,7 @@ Fetches a project and related metadata and returns the raw JSON.
 
 import asyncio
 import logging
-from typing import Any
+from typing import Any, cast
 from urllib.parse import quote
 
 from maturity_meter.config import get_settings
@@ -142,7 +142,7 @@ class GitLabIngestor(Ingestor):
             latest_release_data,
             readme,
             languages,
-            files,
+            file_tree,
             branch_protected,
             contributors,
             closed_issues,
@@ -151,19 +151,22 @@ class GitLabIngestor(Ingestor):
             self.fetch_latest_release(),
             self.fetch_readme(repo_data),
             self.fetch_languages(),
-            self.fetch_files(branch),
+            self.fetch_file_tree(branch),
             self.fetch_default_branch_protected(branch),
             self.fetch_contributors(),
             self.fetch_closed_issues(),
             self.fetch_open_issues(),
         )
 
+        # gather() loses the element types beyond six awaitables.
+        files, files_truncated = cast(tuple[list[str] | None, bool], file_tree)
         result: dict[str, Any] = {
             "repo": repo_data,
             "latest_release": latest_release_data,
             "readme": readme,
             "languages": languages,
             "files": files,
+            "files_truncated": files_truncated,
             "default_branch_protected": branch_protected,
             "contributors": contributors,
             "closed_issues": closed_issues,
@@ -171,9 +174,9 @@ class GitLabIngestor(Ingestor):
         }
         return result
 
-    async def fetch_files(self, branch: str) -> list[str] | None:
+    async def fetch_file_tree(self, branch: str) -> tuple[list[str] | None, bool]:
         """
-        Fetch the paths of files on a branch.
+        Fetch the paths of files on a branch, and whether the list is cut off.
 
         Parameters
         ----------
@@ -182,10 +185,11 @@ class GitLabIngestor(Ingestor):
 
         Returns
         -------
-        list[str] | None
+        tuple[list[str] | None, bool]
             File paths from GET /repository/tree?recursive=true, capped at
-            MAX_TREE_PAGES * PER_PAGE entries, always including the files in
-            the root directory, or None if unavailable.
+            MAX_TREE_PAGES * PER_PAGE entries and always including the files
+            in the root directory (None if unavailable), and whether the cap
+            was reached, in which case a file's absence proves nothing.
         """
         url = f"{self.project_url}/repository/tree"
         # The recursive listing puts directories first, so on large projects
@@ -201,13 +205,33 @@ class GitLabIngestor(Ingestor):
             self._get_pages(url, "root files", {"ref": branch}),
         )
         if recursive is None and root is None:
-            return None
+            return None, False
+        truncated = len(recursive or []) >= MAX_TREE_PAGES * PER_PAGE
+        if truncated:
+            logger.info(f"File tree of {self.owner}/{self.repo} is truncated")
         paths = [
             item["path"]
             for item in [*(root or []), *(recursive or [])]
             if item.get("type") == "blob"
         ]
-        return list(dict.fromkeys(paths))
+        return list(dict.fromkeys(paths)), truncated
+
+    async def fetch_files(self, branch: str) -> list[str] | None:
+        """
+        Fetch the paths of files on a branch (see :meth:`fetch_file_tree`).
+
+        Parameters
+        ----------
+        branch : str
+            Branch to list, usually the default branch.
+
+        Returns
+        -------
+        list[str] | None
+            File paths, or None if unavailable.
+        """
+        paths, _ = await self.fetch_file_tree(branch)
+        return paths
 
     async def fetch_default_branch_protected(self, branch: str) -> bool | None:
         """

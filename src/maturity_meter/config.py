@@ -44,6 +44,9 @@ class Settings(BaseSettings):
         env_file=".env",
         env_prefix="MATURITY_METER_",
         extra="ignore",
+        # ``.env.example`` lists every setting with an empty value; an empty
+        # value means "not set" (e.g. no token), not an empty string.
+        env_ignore_empty=True,
     )
 
     log_level: Literal["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"] = "INFO"

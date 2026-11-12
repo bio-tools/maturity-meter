@@ -1,14 +1,13 @@
 """Sustainability metrics on the contributor community."""
 
-from pathlib import PurePosixPath
-
 from maturity_meter.components.utils.checks import (
     resqui_verdict,
+    verdict_metric,
 )
 from maturity_meter.components.utils.scaling import (
-    placeholder_reconcile,
     placeholder_scale,
 )
+from maturity_meter.components.utils.sources import file_name, has_file
 from maturity_meter.models import IngestedData, MetricResult
 
 SIMPSON_CAP = 4.0
@@ -78,34 +77,14 @@ def has_contribution_guidelines(data: IngestedData) -> MetricResult:
     MetricResult
         1 if found, 0 if not, or ``value=None`` without a file list or check.
     """
-    files = data.repository.get("files")
-    file_verdict = (
-        None
-        if files is None
-        else float(
-            any(PurePosixPath(f).name.lower().startswith("contributing") for f in files)
-        )
-    )
-    resqui = resqui_verdict(data, "has_contribution_guidelines")
-    value = placeholder_reconcile([file_verdict, resqui])
-    if value is None:
-        return MetricResult(
-            name="has_contribution_guidelines",
-            value=None,
-            note="Repository file list unavailable.",
-        )
-    # Name each source's finding, so a disagreement (e.g. 0.5) is explained.
-    findings = {"CONTRIBUTING file": file_verdict, "resqui check": resqui}
-    note = "; ".join(
-        f"{source}: {'found' if verdict else 'not found'}"
-        for source, verdict in findings.items()
-        if verdict is not None
-    )
-    return MetricResult(
-        name="has_contribution_guidelines",
-        value=value,
-        note=f"{note}.",
-        suggestions=[]
-        if file_verdict
-        else ["Add a CONTRIBUTING.md describing how to contribute."],
+    return verdict_metric(
+        "has_contribution_guidelines",
+        {
+            "CONTRIBUTING file": has_file(
+                data, lambda f: file_name(f).startswith("contributing")
+            ),
+            "resqui check": resqui_verdict(data, "has_contribution_guidelines"),
+        },
+        suggestion="Add a CONTRIBUTING.md describing how to contribute.",
+        missing="Repository file list unavailable.",
     )
