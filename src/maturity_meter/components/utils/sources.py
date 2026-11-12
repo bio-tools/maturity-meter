@@ -32,9 +32,19 @@ def repo_files(data: IngestedData) -> list[str] | None:
 
 
 def has_file(data: IngestedData, matches: Any) -> float | None:
-    """Whether any repository file path matches ``matches(path)``."""
+    """Whether any repository file path matches ``matches(path)``.
+
+    Returns 1.0 if a lower-cased path matches and 0.0 if none does, but None
+    (unknown) without a file list, or when the list was truncated and no
+    match was found: on very large repositories a file's absence from a cut-off
+    list proves nothing.
+    """
     files = repo_files(data)
-    return None if files is None else float(any(matches(f) for f in files))
+    if files is None:
+        return None
+    if any(matches(f) for f in files):
+        return 1.0
+    return None if data.repository.get("files_truncated") else 0.0
 
 
 def file_name(path: str) -> str:

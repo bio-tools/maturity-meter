@@ -194,5 +194,8 @@ class ResquiIngestor(Ingestor):
             lines = stderr.decode(errors="replace").strip().splitlines()
             detail = lines[-1] if lines else "no error output"
             raise ResquiError(f"resqui failed (exit {process.returncode}): {detail}")
-        assessment: dict[str, Any] = json.loads(output.read_text())
+        try:
+            assessment: dict[str, Any] = json.loads(output.read_text())
+        except ValueError as error:
+            raise ResquiError(f"resqui wrote an invalid assessment: {error}") from error
         return assessment

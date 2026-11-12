@@ -97,9 +97,14 @@ class CodeMetricsIngestor(Ingestor):
         return float(match.group(1)) if match else None
 
     async def _analyse(self, path: Path) -> dict[str, Any]:
-        complexity, duplicate_rate = await asyncio.gather(
-            asyncio.to_thread(_complexity, path), self._duplicate_rate(path)
-        )
+        try:
+            complexity, duplicate_rate = await asyncio.gather(
+                asyncio.to_thread(_complexity, path), self._duplicate_rate(path)
+            )
+        except Exception as error:
+            # Lizard can fail on unusual source files; report it as this
+            # source being unavailable rather than failing the evaluation.
+            raise CodeMetricsError(f"Code analysis failed: {error!r}") from error
         return {**complexity, "duplicate_rate": duplicate_rate}
 
     async def fetch(self) -> dict[str, Any]:

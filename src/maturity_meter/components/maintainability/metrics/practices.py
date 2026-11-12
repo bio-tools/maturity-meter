@@ -2,8 +2,8 @@
 
 from maturity_meter.components.utils.checks import (
     NO_RESQUI_NOTE,
-    findings_note,
     resqui_verdict,
+    verdict_metric,
 )
 from maturity_meter.models import IngestedData, MetricResult
 
@@ -21,18 +21,13 @@ def has_ci_tests(data: IngestedData) -> MetricResult:
     MetricResult
         1 if tested, 0 if not, or ``value=None`` if resqui did not check.
     """
-    verdict = resqui_verdict(data, "has_ci-tests")
-    if verdict is None:
-        return MetricResult(name="has_ci-tests", value=None, note=NO_RESQUI_NOTE)
-    return MetricResult(
-        name="has_ci-tests",
-        value=verdict,
-        note=findings_note(
-            {"OpenSSF Scorecard": verdict}, "changes tested in CI", "no CI tests"
-        ),
-        suggestions=[]
-        if verdict
-        else ["Run the tests in CI on every pull/merge request."],
+    return verdict_metric(
+        "has_ci-tests",
+        {"OpenSSF Scorecard": resqui_verdict(data, "has_ci-tests")},
+        yes="changes tested in CI",
+        no="no CI tests",
+        suggestion="Run the tests in CI on every pull/merge request.",
+        missing=NO_RESQUI_NOTE,
     )
 
 
@@ -50,16 +45,11 @@ def has_no_linting_issues(data: IngestedData) -> MetricResult:
     MetricResult
         1 if no issues, 0 if there are some, or ``value=None`` if not checked.
     """
-    verdict = resqui_verdict(data, "has_no_linting_issues")
-    if verdict is None:
-        return MetricResult(
-            name="has_no_linting_issues",
-            value=None,
-            note="Not checked: SuperLinter is not enabled in the resqui configuration.",
-        )
-    return MetricResult(
-        name="has_no_linting_issues",
-        value=verdict,
-        note=findings_note({"SuperLinter": verdict}, "no issues", "issues found"),
-        suggestions=[] if verdict else ["Fix the issues reported by the linters."],
+    return verdict_metric(
+        "has_no_linting_issues",
+        {"SuperLinter": resqui_verdict(data, "has_no_linting_issues")},
+        yes="no issues",
+        no="issues found",
+        suggestion="Fix the issues reported by the linters.",
+        missing="Not checked: SuperLinter is not enabled in the resqui configuration.",
     )

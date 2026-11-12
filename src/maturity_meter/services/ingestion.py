@@ -122,18 +122,34 @@ def repository_ingestor(request: EvaluationRequest) -> Ingestor:
     return GitLabIngestor(request.owner, request.repo, request.host)
 
 
+# Expected ways for an optional source to be unavailable.
+_UNAVAILABLE = (httpx.HTTPError, EuropePMCNotFoundError, ResquiError, CodeMetricsError)
+
+
 async def _optional[T](source: str, awaitable: Awaitable[T]) -> T | None:
-    """Await an optional source, returning None if it is unavailable."""
+    """Await an optional source, returning None if it fails.
+
+    An optional source must never fail the evaluation, so any error is logged
+    and the source is skipped ("not assessed"); unexpected errors are logged
+    with their traceback.
+    """
     try:
         return await awaitable
-    except (
-        httpx.HTTPError,
-        EuropePMCNotFoundError,
-        ResquiError,
-        CodeMetricsError,
-    ) as error:
+    except _UNAVAILABLE as error:
         logger.warning(f"Skipping {source}: {error}")
-        return None
+    except Exception:
+        logger.exception(f"Skipping {source} after an unexpected error")
+    return None
+
+
+async def _repository(
+    request: EvaluationRequest, awaitable: Awaitable[dict[str, Any]]
+) -> dict[str, Any]:
+    """Await the mandatory repository, turning failures into RepositoryFetchError."""
+    try:
+        return await awaitable
+    except (httpx.HTTPError, ValueError) as error:
+        raise _repository_error(request, error) from error
 
 
 def _github_token() -> str | None:
@@ -245,34 +261,37 @@ async def _ingest(request: EvaluationRequest) -> IngestedData:
     ]
     # OpenAlex handles missing DOIs itself, mapping them to None.
     missing_oa = [doi for doi in request.dois if doi not in supplied.openalex]
-    openalex = OpenAlexIngestor(missing_oa).fetch() if missing_oa else _none()
+    openalex = (
+        _optional("OpenAlex", OpenAlexIngestor(missing_oa).fetch())
+        if missing_oa
+        else _none()
+    )
 
-    try:
-        # The repository is gathered on its own so its type stays exact; the
-        # optional sources still run concurrently with it.
-        repository, optional_sources = await asyncio.gather(
-            repository_task,
-            asyncio.gather(
-                biotools,
-                openebench,
-                openalex,
-                quality,
-                rsec,
-                code_metrics,
-                *europe_pmc,
-            ),
-        )
-        (
-            biotools_data,
-            openebench_data,
-            openalex_data,
-            quality_data,
-            rsec_data,
-            code_metrics_data,
-            *europe_pmc_data,
-        ) = optional_sources
-    except (httpx.HTTPError, ValueError) as error:
-        raise _repository_error(request, error) from error
+    # Only the repository's errors fail the evaluation; every optional source
+    # is wrapped in _optional, so its failures are skipped instead.
+    # The repository is gathered on its own so its type stays exact; the
+    # optional sources still run concurrently with it.
+    repository, optional_sources = await asyncio.gather(
+        _repository(request, repository_task),
+        asyncio.gather(
+            biotools,
+            openebench,
+            openalex,
+            quality,
+            rsec,
+            code_metrics,
+            *europe_pmc,
+        ),
+    )
+    (
+        biotools_data,
+        openebench_data,
+        openalex_data,
+        quality_data,
+        rsec_data,
+        code_metrics_data,
+        *europe_pmc_data,
+    ) = optional_sources
 
     # EDAM terms describe the bio.tools entry's formats, so they need it first.
     # As with DOIs, only formats without a supplied term are looked up.
