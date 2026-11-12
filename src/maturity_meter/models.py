@@ -408,6 +408,13 @@ class DimensionResult(BaseModel):
     value: float | None
     metrics: list[MetricResult] = Field(default_factory=list)
 
+    @property
+    def coverage(self) -> float:
+        """Share of the dimension's metrics that were assessed, in [0, 1]."""
+        if not self.metrics:
+            return 0.0
+        return sum(m.value is not None for m in self.metrics) / len(self.metrics)
+
 
 class Evaluation(BaseModel):
     """Results per maturity dimension for one evaluation.
