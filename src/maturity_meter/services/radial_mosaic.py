@@ -16,7 +16,7 @@ import base64
 import json
 import subprocess
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from maturity_meter.config import get_settings
 from maturity_meter.models import Evaluation
@@ -43,7 +43,7 @@ def ring(score: float | None) -> int:
 
 def components(
     evaluation: Evaluation, per: Literal["dimension", "metric"] = "dimension"
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """viz-mosaic components: one per dimension or one per metric.
 
     Parameters
@@ -57,7 +57,7 @@ def components(
 
     Returns
     -------
-    list[dict]
+    list[dict[str, Any]]
         Components for ``renderRadialMosaic``.
     """
     rays = []  # (name, score, coverage, category)

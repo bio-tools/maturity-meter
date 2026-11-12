@@ -409,7 +409,7 @@ class DimensionResult(BaseModel):
     value: float | None
     metrics: list[MetricResult] = Field(default_factory=list)
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]  # pydantic's documented pattern
     @property
     def coverage(self) -> float:
         """Share of the dimension's metrics that were assessed, in [0, 1].

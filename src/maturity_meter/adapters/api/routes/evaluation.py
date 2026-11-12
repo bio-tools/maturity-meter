@@ -5,7 +5,7 @@ shape API payloads without duplicating domain logic.
 """
 
 import asyncio
-from typing import Literal
+from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, Response
 
@@ -24,7 +24,7 @@ _STATUS_BY_REASON = {
     "unsupported": 422,
     "unreachable": 502,
 }
-_FETCH_ERRORS = {
+_FETCH_ERRORS: dict[int | str, dict[str, Any]] = {
     status: {"description": "Repository could not be fetched"}
     for status in (403, 404, 422, 429, 502)
 }
