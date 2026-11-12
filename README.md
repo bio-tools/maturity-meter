@@ -40,7 +40,7 @@ poetry run maturity-meter evaluate https://github.com/owner/repo
 
 The result is printed as JSON; add `-o result.json` to save it. Use
 `--save-data data.json` to save the fetched data, and `--data data.json` to
-re-score it later without fetching anything again.
+reuse it later; missing or null sources are fetched again.
 `maturity-meter lineage data.json -o lineage.json` records, as JSON, which
 ingested fields and helper functions each metric uses; add
 `--figure lineage.html` to draw it as a flow figure.
@@ -53,6 +53,15 @@ python scripts/metrics_report.py tool-a.json tool-b.json -o metrics.ods
 
 See the [usage guide](docs/usage.md#comparing-reported-metrics) for included
 sources and report details.
+
+Generate a PDF of metric distributions and exploratory similarities:
+
+```bash
+poetry install --extras reports
+poetry run python scripts/metrics_stats.py tool-a.json tool-b.json -o metrics.pdf
+```
+
+See the [PDF report guide](docs/usage.md#metric-statistics-pdf) for limitations.
 
 For sequential evaluation of multiple tools from a CSV, see the
 [batch evaluation guide](docs/usage.md#batch-evaluation-from-csv).

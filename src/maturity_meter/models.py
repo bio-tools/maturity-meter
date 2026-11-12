@@ -74,6 +74,8 @@ class SuppliedData(BaseModel):
     ----------
     repository, biotools, openebench, quality_checks, rsec, code_metrics : dict | None
         Raw record for that source, or ``None`` to fetch it.
+    fair_checker : list[dict] | None
+        Raw FAIR-Checker JSON-LD assessment, or ``None`` to fetch it.
     europe_pmc, openalex : dict[str, dict | None]
         Records keyed by DOI (bare, ``doi:...`` or doi.org URL).
     edam : dict[str, dict | None]
@@ -86,6 +88,7 @@ class SuppliedData(BaseModel):
     biotools: dict[str, Any] | None = None
     openebench: dict[str, Any] | None = None
     quality_checks: dict[str, Any] | None = None
+    fair_checker: list[dict[str, Any]] | None = None
     rsec: dict[str, Any] | None = None
     code_metrics: dict[str, Any] | None = None
     europe_pmc: dict[str, dict[str, Any] | None] = Field(default_factory=dict)
@@ -295,6 +298,8 @@ class IngestedData:
     quality_checks : dict[str, Any] | None
         resqui quality assessment, or None when it was not run (non-GitHub
         repository) or failed.
+    fair_checker : list[dict[str, Any]] | None
+        Raw FAIR-Checker API JSON-LD assessment, or None if unavailable.
     rsec : dict[str, Any] | None
         RSEc metadata file names for the bio.tools ID (Bioconda, Debian Med,
         BioContainers, Galaxy, ...), or None without an ID or RSEc entry.
@@ -314,6 +319,7 @@ class IngestedData:
     biotools: dict[str, Any] | None = None
     openebench: dict[str, Any] | None = None
     quality_checks: dict[str, Any] | None = None
+    fair_checker: list[dict[str, Any]] | None = None
     rsec: dict[str, Any] | None = None
     code_metrics: dict[str, Any] | None = None
     europe_pmc: dict[str, dict[str, Any] | None] = field(default_factory=dict)

@@ -6,6 +6,7 @@ from .biotools import BiotoolsIngestor
 from .code_metrics import CodeMetricsError, CodeMetricsIngestor
 from .edam import EDAMIngestor, formats_in_biotools
 from .europe_pmc import EuropePMCIngestor, EuropePMCNotFoundError
+from .fairchecker import FairCheckerError, FairCheckerIngestor
 from .github import GitHubIngestor
 from .gitlab import GitLabIngestor
 from .openalex import OpenAlexIngestor
@@ -20,6 +21,8 @@ __all__ = [
     "EDAMIngestor",
     "EuropePMCIngestor",
     "EuropePMCNotFoundError",
+    "FairCheckerError",
+    "FairCheckerIngestor",
     "GitHubIngestor",
     "GitLabIngestor",
     "OpenAlexIngestor",
