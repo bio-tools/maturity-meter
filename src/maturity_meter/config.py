@@ -40,7 +40,11 @@ class Settings(BaseSettings):
         Optional OpenAlex API key for higher rate limits.
     resqui_parallel : int | None
         Maximum number of resqui plugins whose checks run at the same time.
-        All configured plugins run at once when omitted.
+        All configured plugins run at once when omitted. In a batch, the limit
+        is shared by all tools in progress (one per plugin when omitted).
+    batch_jobs : int
+        Number of tools a batch evaluates at the same time, unless the
+        command's ``--jobs`` option says otherwise.
     """
 
     model_config = SettingsConfigDict(
@@ -62,6 +66,7 @@ class Settings(BaseSettings):
     gitlab_token: SecretStr | None = None
     openalex_api_key: SecretStr | None = None
     resqui_parallel: int | None = Field(default=None, ge=1)
+    batch_jobs: int = Field(default=4, ge=1)
 
     @field_validator("server_host")
     @classmethod

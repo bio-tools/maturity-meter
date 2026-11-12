@@ -1,6 +1,14 @@
-"""Fetch the official FAIR-Checker API's raw JSON-LD assessment."""
+"""Fetch the official FAIR-Checker API's raw JSON-LD assessment.
 
+FAIR-Checker evaluates its metrics with objects shared between requests, so two
+simultaneous requests for different repositories can mix up their results.
+Requests from this process are therefore sent one at a time, which also keeps
+batches polite to the public service.
+"""
+
+import asyncio
 import logging
+import weakref
 from typing import Any
 
 from maturity_meter.external.http import get_json
@@ -11,6 +19,19 @@ FAIRCHECKER_API_URL = (
     "https://fair-checker.france-bioinformatique.fr/api/check/metrics_all"
 )
 HTTP_TIMEOUT_SECONDS = 300
+
+# One lock per event loop: asyncio locks cannot be shared between loops.
+_locks: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Lock] = (
+    weakref.WeakKeyDictionary()
+)
+
+
+def _one_at_a_time() -> asyncio.Lock:
+    loop = asyncio.get_running_loop()
+    lock = _locks.get(loop)
+    if lock is None:
+        lock = _locks[loop] = asyncio.Lock()
+    return lock
 
 
 class FairCheckerError(Exception):
@@ -25,14 +46,15 @@ class FairCheckerIngestor:
 
     async def fetch(self) -> list[dict[str, Any]]:
         """Return the raw JSON-LD assessment without calculating scores."""
-        logger.info("Fetching FAIR-Checker data for %s", self.repository_url)
         try:
-            response = await get_json(
-                FAIRCHECKER_API_URL,
-                params={"url": self.repository_url},
-                headers={"Accept": "application/json"},
-                timeout=HTTP_TIMEOUT_SECONDS,
-            )
+            async with _one_at_a_time():
+                logger.info("Fetching FAIR-Checker data for %s", self.repository_url)
+                response = await get_json(
+                    FAIRCHECKER_API_URL,
+                    params={"url": self.repository_url},
+                    headers={"Accept": "application/json"},
+                    timeout=HTTP_TIMEOUT_SECONDS,
+                )
         except ValueError as error:
             raise FairCheckerError("FAIR-Checker returned invalid JSON") from error
         if (
