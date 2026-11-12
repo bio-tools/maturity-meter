@@ -50,7 +50,10 @@ METRIC_CATEGORIES: dict[str, MetricCategory] = {
                 "versioning_standards_use",
             )
         ]
-        + [f"{FAIR}{name}" for name in ("F1A", "F1B", "F2A", "F2B", "I1", "I2", "I3", "R11")]
+        + [
+            f"{FAIR}{name}"
+            for name in ("F1A", "F1B", "F2A", "F2B", "I1", "I2", "I3", "R11")
+        ]
         + [
             # OpenEBench
             "deprecated",
