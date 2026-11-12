@@ -8,7 +8,8 @@ stores both as pandas DataFrames and produces:
   3. The same two plots for each indicator category
   4. Spearman correlation matrices of the measured values: all indicators,
      within each category, and across categories (see correlations())
-  5. Plots 1-2 for each metric source, plus a per-source overview (see source_coverage())
+  5. Plots 1-2 for each metric source, plus a per-source overview
+     (see source_coverage())
 
 A metric is "covered" for a tool when the cell has a value (empty = not covered).
 Note: a measured value of `false` or 0 counts as covered.
@@ -46,7 +47,9 @@ def category_map(metrics):
     """category -> list of metrics. Metrics with several categories
     (e.g. 'Compatibility, Security, Sustainability') are counted in each."""
     out = {}
-    for metric, cats in zip(metrics["Metric"], metrics["Indicator category"]):
+    for metric, cats in zip(
+        metrics["Metric"], metrics["Indicator category"], strict=True
+    ):
         for cat in str(cats).split(","):
             out.setdefault(cat.strip(), []).append(metric)
     return dict(sorted(out.items()))
@@ -67,7 +70,7 @@ def plot_tool_coverage(covered, title, ax):
     pct = covered.mean(axis=1).mul(100)
     bins = np.arange(0, 100 + BIN_WIDTH, BIN_WIDTH)
     counts, _ = np.histogram(pct, bins=bins)
-    labels = [f"{lo}-{hi}%" for lo, hi in zip(bins[:-1], bins[1:])]
+    labels = [f"{lo}-{hi}%" for lo, hi in zip(bins[:-1], bins[1:], strict=True)]
     bars = ax.bar(labels, counts, color="#DD8452")
     ax.bar_label(bars, fontsize=8)
     ax.set_xlabel("% of indicators covered")
@@ -154,7 +157,7 @@ def to_numeric(tools):
     """tools x metrics DataFrame of floats; drops indicators that are unusable
     for correlation (fewer than MIN_PAIRS values, or the same value for every tool)."""
     num = pd.DataFrame(
-        {c: tools[c].map(lambda v: _to_number(v, c)) for c in tools.columns}
+        {c: tools[c].map(lambda v, c=c: _to_number(v, c)) for c in tools.columns}
     )
     n_values, n_unique = num.notna().sum(), num.nunique()
     reason = pd.Series("", index=num.columns)
@@ -169,7 +172,8 @@ def to_numeric(tools):
 
 def category_scores(num, cats):
     """Per-tool score for each category: mean percentile rank (0-1) of the tool
-    over the category's indicators (ranks make indicators on different scales comparable)."""
+    over the category's indicators (ranks make indicators on different scales
+    comparable)."""
     ranks = num.rank(pct=True)
     return pd.DataFrame(
         {
@@ -251,7 +255,8 @@ def correlations(metrics, tools, out_dir):
         out_dir / "dropped_indicators.csv"
     )
     print(
-        f"Correlations: {num.shape[1]} usable indicators, {len(dropped)} dropped. Saved to {out_dir.resolve()}"
+        f"Correlations: {num.shape[1]} usable indicators, {len(dropped)} dropped. "
+        f"Saved to {out_dir.resolve()}"
     )
 
 
@@ -301,7 +306,11 @@ def source_coverage(metrics, covered, out_dir):
         color="#DD8452",
     )
     ax.set_yticks(
-        y, [f"{s} ({int(n)})" for s, n in zip(overview.index, overview["metrics"])]
+        y,
+        [
+            f"{s} ({int(n)})"
+            for s, n in zip(overview.index, overview["metrics"], strict=True)
+        ],
     )
     ax.set_xlim(0, 100)
     ax.set_xlabel("% of tools")
@@ -338,7 +347,8 @@ def main():
 
     source_coverage(metrics, covered, out_dir)
     print(
-        f"{len(tools)} tools, {tools.shape[1]} metrics. Plots and CSVs saved to {out_dir.resolve()}"
+        f"{len(tools)} tools, {tools.shape[1]} metrics. "
+        f"Plots and CSVs saved to {out_dir.resolve()}"
     )
 
 

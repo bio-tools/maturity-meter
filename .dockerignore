@@ -12,3 +12,4 @@ dist
 docs/build
 site
 *.sif
+node_modules
