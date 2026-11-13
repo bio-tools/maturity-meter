@@ -15,12 +15,12 @@ carry one. Each aspect is answered by every source that can:
   [Scaling](#scaling) below; yes/no answers are already 0 or 1);
 - the sources answering one aspect are **reconciled** by one of three rules
   (see [Reconciliation](#reconciliation) below);
-- the aspects are **combined** into the metric with `placeholder_combine`;
-- the metrics are **aggregated** into the dimension with
-  `placeholder_dimension_score`.
+- the aspects are **combined** into the metric, equally weighted;
+- the metrics are **aggregated** into the dimension by importance (see
+  [Aggregation](#aggregation) below).
 
-Combination and aggregation are placeholders (currently means), to be
-replaced once they are decided; the scaling and reconciliation are final. A source without an answer, or an aspect no source could answer,
+There is no overall maturity score yet: the six dimensions are reported as a
+profile. A source without an answer, or an aspect no source could answer,
 is left out rather than counted as a "no". Metrics with a single aspect simply
 reconcile their sources. Each metric's note lists every aspect's answer and
 every source's answer to it, so disagreements are visible; its suggestions are
@@ -182,6 +182,62 @@ repository and within OpenEBench), open-source licence, per-file licensing,
 public repository, tests, releases, version numbers, contribution guidelines,
 CI configured, dependency management, and each publication's open-access
 status. All others use **any**, except issue close time (**priority**).
+
+## Aggregation
+
+A metric's aspects count equally: each metric's aspects were chosen as parts
+of one concept, with no basis to rank them (equal weighting, as the OECD/JRC
+*Handbook on Constructing Composite Indicators* recommends in that case).
+
+A dimension's metrics count by **importance**, defined centrally in
+`components/utils/importance.py`. Each metric has one of three tiers per
+dimension, which is its weight:
+
+- **essential** (3): the dimension makes little sense without it;
+- **important** (2): a core part of the dimension;
+- **supporting** (1): helpful, but optional, overlapping with another metric,
+  biased, or without an established benchmark.
+
+| Dimension | Essential | Important | Supporting |
+|---|---|---|---|
+| FAIRness | `licensing`, `source_availability`, `documentation` | `persistent_identifier`, `releases_and_versioning`, `machine_readable_metadata`, `registry_listing`, `citation_and_credit`, `installation_instructions`, `software_tests` | `source_archival`, `binary_distribution`, `publications`, `issue_tracking`, `project_website`, `contribution_and_governance`, `containerization` |
+| Compatibility | — | `input_formats`, `output_formats`, `package_availability`, `containerization` | `workflow_integration`, `dependency_management` |
+| Maintainability | — | `continuous_integration`, `releases_and_versioning`, `requirements_specified` | `avg_ccn`, `duplicate_rate`, `linting` |
+| Scientific impact | — | `fwci`, `citation_count` | `star_count`, `fork_count` |
+| Security | `vulnerability_management` | `change_control`, `repository_hygiene`, `dependency_management` | `security_testing` |
+| Sustainability | — | `development_activity`, `inverse_simpson_index`, `contribution_and_governance` | `issue_close_time`, `resolved_issue_share` |
+
+The tiers are informed judgements, not fitted to any data. They follow the
+indicator guide's "keep" (important) and "maybe" (supporting); for FAIRness,
+the [FAIR principles for research software](https://doi.org/10.1038/s41597-022-01710-x)
+(a licence, accessible source code and documentation make reuse possible at
+all); for Security, [OpenSSF Scorecard's risk levels](https://github.com/ossf/scorecard/blob/main/docs/checks.md);
+and they weigh down overlapping metrics (stars and forks) and biased ones
+(code metrics depend on the language).
+
+The dimension's score is the **weighted mean** of its assessed metrics; metrics
+that could not be assessed are left out and the other weights renormalised.
+It is **capped by the weighted mean of its essential metrics**, so strengths
+elsewhere cannot lift a dimension above its essentials, as in staged maturity
+models (e.g. a FAIRness score cannot exceed what its licensing, source
+availability and documentation support); one weak essential among several
+lowers the cap without zeroing the dimension. Each metric's weight is in the
+results, and each dimension's **coverage** is the assessed share of its total
+weight.
+
+### Sensitivity
+
+Following the OECD/JRC handbook, the effect of the weights was checked on the
+ingested data of 505 bio.tools-registered tools, as the rank correlation
+(Spearman) of the dimension scores with alternatives:
+
+- **Equal weights, no cap:** 0.86 (FAIRness), 0.58 (Security), 0.98 or more
+  elsewhere: the tiers matter mostly where there are essential metrics.
+- **Shifting the important and supporting tiers at random (essentials
+  fixed):** 0.90 or more in every dimension, in each of 50 draws.
+
+So the decisive judgement is which metrics are essential; the split between
+important and supporting changes the rankings little.
 
 ## Ingested items that are not used
 

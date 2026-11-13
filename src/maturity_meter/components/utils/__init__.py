@@ -1,5 +1,5 @@
 """Shared helpers for the dimension components: scaling, reconciliation,
-placeholder aspect combination and dimension scores, source reliability,
+aspect combination and dimension aggregation, source reliability,
 reading resqui and FAIR-Checker verdicts, and building metrics from them.
 """
 
@@ -13,8 +13,8 @@ from .checks import (
     verdict_metric,
 )
 from .scaling import (
-    placeholder_combine,
-    placeholder_dimension_score,
+    aggregate_dimension,
+    combine_aspects,
     reconcile_any,
     reconcile_evidence,
     reconcile_priority,
@@ -26,8 +26,8 @@ __all__ = [
     "Pool",
     "reconcile",
     "has_any_file",
-    "placeholder_combine",
-    "placeholder_dimension_score",
+    "combine_aspects",
+    "aggregate_dimension",
     "reconcile_any",
     "reconcile_evidence",
     "reconcile_priority",

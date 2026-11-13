@@ -4,7 +4,7 @@ A metric is either a single question answered by several sources
 (:func:`verdict_metric`) or several distinct questions about one concept, its
 aspects (:func:`aspect_metric`). Each question reconciles its sources with one
 of three rules (see :data:`Rule`); aspects are combined with
-:func:`placeholder_combine`.
+:func:`combine_aspects`.
 """
 
 from collections.abc import Collection, Iterable
@@ -13,7 +13,7 @@ from typing import Literal
 
 from maturity_meter.components.utils.reliability import Evidence, assessment_tool
 from maturity_meter.components.utils.scaling import (
-    placeholder_combine,
+    combine_aspects,
     reconcile_any,
     reconcile_evidence,
     reconcile_priority,
@@ -274,7 +274,7 @@ def aspect_metric(
     """A metric made of several aspects (distinct questions) of one concept.
 
     Each aspect reconciles the sources that answer it; the metric's value
-    combines the assessed aspects with :func:`placeholder_combine`. An aspect
+    combines the assessed aspects with :func:`combine_aspects`. An aspect
     no source could answer is left out rather than counted as a no.
 
     Parameters
@@ -294,7 +294,7 @@ def aspect_metric(
         below 0.5.
     """
     values = {label: aspect.value for label, aspect in aspects.items()}
-    value = placeholder_combine(list(values.values()))
+    value = combine_aspects(list(values.values()))
     if value is None:
         return MetricResult(name=name, value=None, note=missing)
     parts = []

@@ -381,6 +381,9 @@ class MetricResult(BaseModel):
         Actionable ways to improve the score.
     note : str | None
         Optional remark, e.g. on missing data or caveats.
+    weight : float | None
+        Importance of the metric in its dimension's score (1 supporting, 2
+        important, 3 essential), or ``None`` when not weighted.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -389,6 +392,7 @@ class MetricResult(BaseModel):
     value: float | None
     suggestions: list[str] = Field(default_factory=list)
     note: str | None = None
+    weight: float | None = None
 
 
 class DimensionResult(BaseModel):
@@ -412,13 +416,19 @@ class DimensionResult(BaseModel):
     @computed_field  # type: ignore[prop-decorator]  # pydantic's documented pattern
     @property
     def coverage(self) -> float:
-        """Share of the dimension's metrics that were assessed, in [0, 1].
+        """Share of the dimension that was assessed, in [0, 1].
 
-        Derived from ``metrics``, and included when the result is serialized.
+        The share of the metrics' total weight whose metrics were assessed
+        (each unweighted metric counts 1). Derived from ``metrics``, and
+        included when the result is serialized.
         """
         if not self.metrics:
             return 0.0
-        return sum(m.value is not None for m in self.metrics) / len(self.metrics)
+        weights = [1.0 if m.weight is None else m.weight for m in self.metrics]
+        assessed = sum(
+            w for w, m in zip(weights, self.metrics, strict=True) if m.value is not None
+        )
+        return assessed / sum(weights)
 
 
 class Evaluation(BaseModel):

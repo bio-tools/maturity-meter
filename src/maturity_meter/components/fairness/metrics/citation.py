@@ -13,7 +13,7 @@ from maturity_meter.components.utils.reliability import (
     repository,
 )
 from maturity_meter.components.utils.scaling import (
-    placeholder_combine,
+    combine_aspects,
     reconcile_evidence,
 )
 from maturity_meter.components.utils.sources import (
@@ -159,7 +159,7 @@ def publications(data: IngestedData) -> MetricResult:
     access = _open_access(data)
     known = [v for v in access.values() if v is not None]
     share = sum(known) / len(known) if known else None
-    value = placeholder_combine([1.0, share])
+    value = combine_aspects([1.0, share])
     note = f"{len(dois)} publication(s)"
     note += (
         f"; {sum(known):g} of {len(known)} with known status are open access."

@@ -4,16 +4,20 @@ All scores are in [0, 1]. The scaling functions map one source's raw value
 onto [0, 1] before any reconciliation; each documents the reasoning and the
 reference it is anchored on. Reconciliation combines several sources'
 answers to one question, by one of three rules (evidence, any, priority).
-Aspect combination and dimension aggregation are still placeholders until they
-are decided.
+Aspects are combined equally weighted, and metrics are aggregated into their
+dimension by importance (see :mod:`~maturity_meter.components.utils.importance`).
 """
 
 import math
+from collections.abc import Mapping
 from statistics import mean
 
+from maturity_meter.components.utils.importance import Tier
 from maturity_meter.components.utils.reliability import Evidence, vote_weight
 from maturity_meter.components.utils.roles import role
-from maturity_meter.models import MetricResult
+from maturity_meter.models import DimensionResult, MetricResult
+
+_ESSENTIAL_WEIGHT = float(Tier.ESSENTIAL)
 
 
 def _clip(score: float) -> float:
@@ -248,13 +252,17 @@ def reconcile_priority(values: list[float | None]) -> float | None:
 
 
 @role("reconciliation")
-def placeholder_combine(values: list[float | None]) -> float | None:
-    """Placeholder combination of a metric's aspects into the metric's value.
+def combine_aspects(values: list[float | None]) -> float | None:
+    """Combine a metric's aspects into the metric's value, equally weighted.
 
     Used when a metric covers several distinct questions (aspects) about one
     concept, e.g. licensing: is a licence declared, is it open source, is it
-    machine-readable. Unlike the reconciliation functions, the values are
-    answers to different questions, not one question from several sources.
+    machine-readable. Each metric's aspects were chosen as parts of one
+    concept, with no basis to rank them, so they count equally (equal
+    weighting, as the OECD/JRC Handbook on Constructing Composite Indicators
+    recommends in that case). Unlike the reconciliation functions, the values
+    are answers to different questions, not one question from several
+    sources.
 
     Parameters
     ----------
@@ -271,19 +279,47 @@ def placeholder_combine(values: list[float | None]) -> float | None:
 
 
 @role("aggregation")
-def placeholder_dimension_score(metrics: list[MetricResult]) -> float | None:
-    """Placeholder dimension score: the mean of the assessed metrics.
+def aggregate_dimension(
+    metrics: list[MetricResult], importance: Mapping[str, int]
+) -> DimensionResult:
+    """Combine a dimension's metrics into its score, by importance.
+
+    The score is the weighted mean of the assessed metrics, each weighted by
+    its importance tier (see :mod:`~maturity_meter.components.utils.importance`);
+    metrics that could not be assessed are left out and the weights of the
+    others renormalised. It is capped by the weighted mean of the assessed
+    *essential* metrics, so strengths elsewhere cannot lift a dimension above
+    its essentials, as in staged maturity models; one weak essential among
+    several lowers the cap without zeroing the dimension. The coverage (the
+    assessed share of the total weight) is reported with the result.
 
     Parameters
     ----------
     metrics : list[MetricResult]
         Metric results of one dimension.
+    importance : mapping of str to int
+        Importance tier (weight) of every metric, by metric name.
 
     Returns
     -------
-    float | None
-        Mean value of the metrics whose value is not None, or None if no
-        metric was assessed.
+    DimensionResult
+        The score (None if no metric was assessed) and the metrics, each with
+        its weight.
+
+    Raises
+    ------
+    KeyError
+        If a metric has no importance tier.
     """
-    values = [m.value for m in metrics if m.value is not None]
-    return mean(values) if values else None
+    weighted = [
+        m.model_copy(update={"weight": float(importance[m.name])}) for m in metrics
+    ]
+    assessed = [(m.weight or 0.0, m.value) for m in weighted if m.value is not None]
+    if not assessed:
+        return DimensionResult(value=None, metrics=weighted)
+    score = sum(w * v for w, v in assessed) / sum(w for w, _ in assessed)
+    essential = [(w, v) for w, v in assessed if w == _ESSENTIAL_WEIGHT]
+    if essential:
+        ceiling = sum(w * v for w, v in essential) / sum(w for w, _ in essential)
+        score = min(score, ceiling)
+    return DimensionResult(value=score, metrics=weighted)

@@ -1,7 +1,7 @@
 """Scientific impact metrics.
 
 Each function computes one metric from the ingested data and returns its
-:class:`MetricResult`, scored with the placeholder helpers in
+:class:`MetricResult`, scored with the scaling helpers in
 :mod:`maturity_meter.components.utils.scaling`.
 """
 

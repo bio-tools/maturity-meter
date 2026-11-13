@@ -1,4 +1,5 @@
-from maturity_meter.components.utils.scaling import placeholder_dimension_score
+from maturity_meter.components.utils.importance import IMPORTANCE
+from maturity_meter.components.utils.scaling import aggregate_dimension
 from maturity_meter.models import DimensionResult, IngestedData
 
 from .metrics import (
@@ -42,4 +43,4 @@ def eval(data: IngestedData) -> DimensionResult:
         contribution_and_governance(data),
         containerization(data),
     ]
-    return DimensionResult(value=placeholder_dimension_score(metrics), metrics=metrics)
+    return aggregate_dimension(metrics, IMPORTANCE["fairness"])
