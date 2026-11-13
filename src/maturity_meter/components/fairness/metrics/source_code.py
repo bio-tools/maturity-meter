@@ -1,18 +1,19 @@
-"""FAIRness metrics on source code, releases, builds, tests and archival."""
-
-import re
+"""FAIRness metrics on the source code: access, binaries, tests, archival."""
 
 from maturity_meter.components.utils.checks import (
+    Aspect,
+    aspect_metric,
     resqui_verdict,
     verdict_metric,
 )
-from maturity_meter.components.utils.files import (
-    BUILD_FILES,
-    is_test_path,
+from maturity_meter.components.utils.files import is_test_path
+from maturity_meter.components.utils.reliability import (
+    aggregator,
+    assessment_tool,
+    repository,
 )
 from maturity_meter.components.utils.sources import (
     biotools_types,
-    file_name,
     has_file,
     openebench_metric,
     readme_matches,
@@ -22,11 +23,16 @@ from maturity_meter.components.utils.sources import (
 from maturity_meter.models import IngestedData, MetricResult
 
 
-def version_control(data: IngestedData) -> MetricResult:
-    """Whether the source is under version control in a public repository.
+def source_availability(data: IngestedData) -> MetricResult:
+    """Whether the source code is public, version-controlled and downloadable.
 
-    Sources: the GitHub/GitLab repository itself, OpenEBench's online
-    repository check and resqui's ``version_control_use`` check.
+    Aspects and their sources:
+
+    - public repository (evidence): the GitHub/GitLab repository's visibility,
+      OpenEBench's public, online-repository and anonymous-access checks, and
+      RSFC's ``version_control_use`` check;
+    - free download (any): OpenEBench's free-source and source-package checks, and
+      source-code downloads in bio.tools.
 
     Parameters
     ----------
@@ -36,32 +42,76 @@ def version_control(data: IngestedData) -> MetricResult:
     Returns
     -------
     MetricResult
-        The reconciled verdict.
+        The aspects combined, or ``value=None`` if no source could check.
     """
-    return verdict_metric(
-        "version_control",
+    repo = repo_record(data)
+    downloads = biotools_types(data, "download")
+    return aspect_metric(
+        "source_availability",
         {
-            # A repository record means it is hosted on GitHub/GitLab; without
-            # one (not ingested) the answer is unknown, not "no".
-            "GitHub/GitLab repository": None if repo_record(data) is None else 1.0,
-            "OpenEBench": verdict(
-                openebench_metric(data, "distribution.sourcecode.repository.online")
+            "public repository": Aspect(
+                {
+                    # Without a repository record (not ingested) the
+                    # visibility is unknown, not "private".
+                    "public GitHub/GitLab repository": repository(
+                        None
+                        if repo is None
+                        else float(
+                            repo.get("visibility") == "public"
+                            or repo.get("private") is False
+                        )
+                    ),
+                    "OpenEBench public source": aggregator(
+                        verdict(
+                            openebench_metric(data, "distribution.sourcecode.public")
+                        )
+                    ),
+                    "OpenEBench online repository": aggregator(
+                        verdict(
+                            openebench_metric(
+                                data, "distribution.sourcecode.repository.online"
+                            )
+                        )
+                    ),
+                    "OpenEBench anonymous access": aggregator(
+                        verdict(
+                            openebench_metric(
+                                data, "distribution.sourcecode.repository.anonymous"
+                            )
+                        )
+                    ),
+                    "RSFC version control": assessment_tool(
+                        resqui_verdict(data, "version_control_use")
+                    ),
+                },
+                "Develop the software in a public version-controlled repository.",
+                rule="evidence",
             ),
-            "resqui check": resqui_verdict(data, "version_control_use"),
+            "free download": Aspect(
+                {
+                    "OpenEBench free source": verdict(
+                        openebench_metric(data, "distribution.sourcecode.free")
+                    ),
+                    "OpenEBench source packages": verdict(
+                        openebench_metric(data, "distribution.source_packages")
+                    ),
+                    "bio.tools source download": None
+                    if downloads is None
+                    else float("Source code" in downloads),
+                },
+                "Offer the source code as a free download (e.g. release archives).",
+            ),
         },
-        suggestion="Develop the software in a public version-controlled repository.",
     )
 
 
-_VERSION_TAG = re.compile(r"^v?\d+\.\d+(\.\d+)?([-.+][\w.]+)?$", re.IGNORECASE)
+def binary_distribution(data: IngestedData) -> MetricResult:
+    """Whether ready-to-use binaries can be downloaded.
 
-
-def releases_and_versioning(data: IngestedData) -> MetricResult:
-    """Whether there are releases with conventional version numbers.
-
-    Sources: the latest GitHub/GitLab release and whether its tag looks like a
-    version (e.g. ``v1.2.3``), and resqui's ``has_releases`` and
-    ``versioning_standards_use`` checks.
+    Sources (any one suffices): assets of the latest GitHub/GitLab release,
+    binary downloads in bio.tools, and OpenEBench's free-binaries check.
+    Package managers (Bioconda, Debian, PyPI) are assessed by Compatibility's
+    ``package_availability``.
 
     Parameters
     ----------
@@ -73,55 +123,39 @@ def releases_and_versioning(data: IngestedData) -> MetricResult:
     MetricResult
         The reconciled verdict, or ``value=None`` if no source could check.
     """
-    repository = data.repository
-    latest = repository.get("latest_release")
-    known = "latest_release" in repository
-    tag = str((latest or {}).get("tag_name") or "")
+    repo_data = data.repository
+    assets = None
+    if "latest_release" in repo_data:
+        latest = repo_data.get("latest_release") or {}
+        release_assets = latest.get("assets")
+        # GitHub lists assets directly; GitLab under assets.links (its
+        # assets.sources are the automatic source archives).
+        if isinstance(release_assets, dict):
+            release_assets = release_assets.get("links")
+        assets = float(bool(release_assets))
+    downloads = biotools_types(data, "download")
     return verdict_metric(
-        "releases_and_versioning",
+        "binary_distribution",
         {
-            "repository releases": verdict(latest) if known else None,
-            "version-like tag": float(bool(_VERSION_TAG.match(tag))) if tag else None,
-            "resqui releases check": resqui_verdict(data, "has_releases"),
-            "resqui versioning check": resqui_verdict(data, "versioning_standards_use"),
-        },
-        suggestion="Publish releases tagged with version numbers (e.g. v1.2.3).",
-    )
-
-
-def automated_build(data: IngestedData) -> MetricResult:
-    """Whether an automated build system is configured.
-
-    Sources: build configuration files (Makefile, CMake, pyproject.toml, ...)
-    and OpenEBench's build information.
-
-    Parameters
-    ----------
-    data : IngestedData
-        Ingested data.
-
-    Returns
-    -------
-    MetricResult
-        The reconciled verdict, or ``value=None`` if no source could check.
-    """
-    return verdict_metric(
-        "automated_build",
-        {
-            "build configuration": has_file(
-                data, lambda f: file_name(f) in BUILD_FILES
+            "release assets": assets,
+            "bio.tools binaries": None
+            if downloads is None
+            else float("Binaries" in downloads),
+            "OpenEBench free binaries": verdict(
+                openebench_metric(data, "distribution.binaries.freeness")
             ),
-            "OpenEBench": verdict(openebench_metric(data, "project.build")),
         },
-        suggestion="Add a build configuration (e.g. a Makefile or pyproject.toml).",
+        rule="any",
+        suggestion="Attach ready-to-use binaries to the releases.",
     )
 
 
 def software_tests(data: IngestedData) -> MetricResult:
     """Whether the software comes with tests.
 
-    Sources: test files or folders in the repository and resqui's
-    ``software_has_tests`` check.
+    Sources (weighed as evidence): test files or folders in the repository
+    and RSFC's ``software_has_tests`` check. Whether the tests run automatically is
+    assessed by Maintainability's ``continuous_integration``.
 
     Parameters
     ----------
@@ -136,107 +170,19 @@ def software_tests(data: IngestedData) -> MetricResult:
     return verdict_metric(
         "software_tests",
         {
-            "test files": has_file(data, is_test_path),
-            "resqui check": resqui_verdict(data, "software_has_tests"),
+            "test files": repository(has_file(data, is_test_path)),
+            "RSFC": assessment_tool(resqui_verdict(data, "software_has_tests")),
         },
+        rule="evidence",
         suggestion="Add automated tests.",
-    )
-
-
-def source_availability(data: IngestedData) -> MetricResult:
-    """Whether the source code is publicly and freely available.
-
-    Sources: the repository's visibility, OpenEBench's public and free source
-    checks, and source-code downloads in bio.tools.
-
-    Parameters
-    ----------
-    data : IngestedData
-        Ingested data.
-
-    Returns
-    -------
-    MetricResult
-        The reconciled verdict, or ``value=None`` if no source could check.
-    """
-    repo = repo_record(data)
-    downloads = biotools_types(data, "download")
-    return verdict_metric(
-        "source_availability",
-        {
-            "public repository": None
-            if repo is None
-            else float(
-                repo.get("visibility") == "public" or repo.get("private") is False
-            ),
-            "OpenEBench public source": verdict(
-                openebench_metric(data, "distribution.sourcecode.public")
-            ),
-            "OpenEBench free source": verdict(
-                openebench_metric(data, "distribution.sourcecode.free")
-            ),
-            "bio.tools source download": None
-            if downloads is None
-            else float("Source code" in downloads),
-        },
-        suggestion="Make the source code publicly available.",
-    )
-
-
-def binary_distribution(data: IngestedData) -> MetricResult:
-    """Whether ready-to-use binaries or packages are distributed.
-
-    Sources: assets of the latest GitHub/GitLab release, binary downloads in
-    bio.tools, OpenEBench's binary and package checks, and Bioconda (RSEc).
-
-    Parameters
-    ----------
-    data : IngestedData
-        Ingested data.
-
-    Returns
-    -------
-    MetricResult
-        The reconciled verdict, or ``value=None`` if no source could check.
-    """
-    repository = data.repository
-    assets = None
-    if "latest_release" in repository:
-        latest = repository.get("latest_release") or {}
-        release_assets = latest.get("assets")
-        # GitHub lists assets directly; GitLab under assets.links (its
-        # assets.sources are the automatic source archives).
-        if isinstance(release_assets, dict):
-            release_assets = release_assets.get("links")
-        assets = float(bool(release_assets))
-    downloads = biotools_types(data, "download")
-    rsec_files = None if data.rsec is None else data.rsec.get("files") or []
-    return verdict_metric(
-        "binary_distribution",
-        {
-            "release assets": assets,
-            "bio.tools binaries": None
-            if downloads is None
-            else float("Binaries" in downloads),
-            "OpenEBench free binaries": verdict(
-                openebench_metric(data, "distribution.binaries.freeness")
-            ),
-            "OpenEBench packages": verdict(
-                openebench_metric(data, "distribution.packages")
-            ),
-            "Bioconda (RSEc)": None
-            if rsec_files is None
-            else float(any(str(f).lower().startswith("bioconda_") for f in rsec_files)),
-        },
-        suggestion="Distribute binaries or packages (e.g. release assets, Bioconda).",
     )
 
 
 def source_archival(data: IngestedData) -> MetricResult:
     """Whether the source is archived for the long term.
 
-    Sources: Zenodo and Software Heritage references in the README, and
-    resqui's ``archived_in_software_heritage`` and
+    Sources (any one suffices): Zenodo and Software Heritage references in
+    the README, and RSFC's ``archived_in_software_heritage`` and
     ``archived_in_scholarly_repository`` checks.
 
     Parameters
@@ -256,12 +202,13 @@ def source_archival(data: IngestedData) -> MetricResult:
             "Software Heritage in README": readme_matches(
                 data, r"softwareheritage\.org|swh:1:"
             ),
-            "resqui Software Heritage check": resqui_verdict(
+            "RSFC Software Heritage": resqui_verdict(
                 data, "archived_in_software_heritage"
             ),
-            "resqui scholarly repository check": resqui_verdict(
+            "RSFC scholarly repository": resqui_verdict(
                 data, "archived_in_scholarly_repository"
             ),
         },
+        rule="any",
         suggestion="Archive the source code in Software Heritage and on Zenodo.",
     )

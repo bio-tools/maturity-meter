@@ -1,19 +1,21 @@
 """Sustainability metrics.
 
 Each function computes one metric from the ingested data and returns its
-:class:`MetricResult`, scored with the placeholder helpers in
-:mod:`maturity_meter.components.utils.scaling`. When several sources measure the
-same thing, all of them are combined with :func:`placeholder_reconcile`.
+:class:`MetricResult`, scored with the scaling helpers in
+:mod:`maturity_meter.components.utils.scaling`. ``contribution_and_governance``
+is shared with FAIRness.
 """
 
-from .activity import days_since_last_commit
-from .community import has_contribution_guidelines, inverse_simpson_index
-from .issues import avg_issue_close_time_days, num_open_issues
+from maturity_meter.components.shared import contribution_and_governance
+
+from .activity import development_activity
+from .community import inverse_simpson_index
+from .issues import issue_close_time, resolved_issue_share
 
 __all__ = [
-    "avg_issue_close_time_days",
-    "days_since_last_commit",
-    "has_contribution_guidelines",
+    "contribution_and_governance",
+    "development_activity",
     "inverse_simpson_index",
-    "num_open_issues",
+    "issue_close_time",
+    "resolved_issue_share",
 ]

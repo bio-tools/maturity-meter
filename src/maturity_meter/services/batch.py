@@ -2,8 +2,11 @@
 
 Tools come from a bio.tools CSV export with ``biotoolsID``, ``homepage``
 (repository URL) and ``dois`` (comma-separated) columns. Each tool's ingested
-data is saved as soon as it is complete, so an interrupted batch resumes where
-it stopped: tools that already have a data file are skipped.
+data is saved as soon as it is complete, then scored, and its result saved.
+Tools that already have a data file are not fetched again: their saved data is
+scored (or, on request, only their missing sources are fetched), so an
+interrupted batch resumes where it stopped, and re-running a batch re-scores
+every tool in seconds after the scoring changes.
 
 A batch is more efficient than evaluating the tools one by one:
 
@@ -24,6 +27,7 @@ same time do not mix.
 import asyncio
 import contextlib
 import csv
+import json
 import logging
 import os
 import re
@@ -43,8 +47,9 @@ from maturity_meter.config import get_settings
 from maturity_meter.external.http import get_json, shared_client
 from maturity_meter.external.ingestors.resqui import plugin_count, shared_limit
 from maturity_meter.logging_config import LOG_FORMAT
-from maturity_meter.models import EvaluationRequest
+from maturity_meter.models import EvaluationRequest, IngestedData
 from maturity_meter.services.ingestion import ingest
+from maturity_meter.services.processing import score
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +111,7 @@ class BatchRow:
 
 
 EventKind = Literal[
-    "invalid", "skip_url", "skip_existing", "plan", "start", "wait", "done", "failed"
+    "invalid", "skip_url", "plan", "scored", "start", "wait", "done", "failed"
 ]
 
 
@@ -117,9 +122,10 @@ class BatchEvent:
     Attributes
     ----------
     kind : str
-        ``invalid`` or ``skip_url`` (row not evaluated), ``skip_existing``
-        (data file already present), ``plan`` (dry run), ``start``, ``done``
-        or ``failed`` (one tool), or ``wait`` (for GitHub's rate limit).
+        ``invalid`` or ``skip_url`` (row not evaluated), ``plan`` (dry run),
+        ``scored`` (from saved data, without fetching), ``start`` and ``done``
+        (fetched and scored), ``failed`` (one tool), or ``wait`` (for GitHub's
+        rate limit).
     row : int | None
         CSV line number, if the event concerns one row.
     biotools_id : str
@@ -143,18 +149,21 @@ class BatchSummary:
 
     Attributes
     ----------
-    succeeded : int
-        Tools evaluated (or planned, in a dry run).
-    skipped_existing : int
-        Tools skipped because their data file already exists.
+    evaluated : int
+        Tools scored (or planned, in a dry run).
+    fetched : int
+        Of those, tools whose data was fetched (all or only missing sources).
+    from_saved : int
+        Of those, tools scored from their saved data without fetching.
     skipped_urls : int
         Rows skipped because their URL points inside a repository.
     failed : int
         Invalid rows and failed evaluations.
     """
 
-    succeeded: int = 0
-    skipped_existing: int = 0
+    evaluated: int = 0
+    fetched: int = 0
+    from_saved: int = 0
     skipped_urls: int = 0
     failed: int = 0
 
@@ -339,6 +348,15 @@ def _write_new(path: Path, text: str) -> None:
         os.unlink(file.name)
 
 
+def _write_replace(path: Path, text: str) -> None:
+    """Write ``path`` in one step, replacing it if it exists."""
+    with tempfile.NamedTemporaryFile(
+        "w", dir=path.parent, suffix=".tmp", delete=False, encoding="utf-8"
+    ) as file:
+        file.write(text)
+    os.replace(file.name, path)
+
+
 class _GitHubBudget:
     """Wait for GitHub's rate limit to reset when few requests are left."""
 
@@ -382,27 +400,34 @@ async def evaluate_batch(
     output_dir: Path,
     *,
     jobs: int | None = None,
+    fill_missing: bool = False,
     dry_run: bool = False,
     report: Callable[[BatchEvent], None] = lambda event: None,
 ) -> BatchSummary:
-    """Evaluate the tools in ``rows``, saving each one's ingested data.
+    """Evaluate the tools in ``rows``, saving their data and results.
 
-    Data is saved to ``output_dir/raw/<row>-<bio.tools ID>.json`` (reusable with
-    ``maturity-meter evaluate --data``) and logs to ``output_dir/logs/``. Tools
-    whose data file exists are skipped. A failed tool is reported and leaves no
-    data file; the other tools continue.
+    Each tool's ingested data is saved to ``output_dir/raw/<row>-<bio.tools
+    ID>.json`` (reusable with ``maturity-meter evaluate --data``), its scored
+    result to ``output_dir/results/`` under the same name, and its log to
+    ``output_dir/logs/``. A tool with a saved data file is not fetched again:
+    the saved data is scored as it is, or with ``fill_missing`` only its
+    missing sources are fetched. A failed tool is reported and leaves no new
+    files; the other tools continue.
 
     Parameters
     ----------
     rows : list of BatchRow
         Rows from :func:`read_csv`.
     output_dir : pathlib.Path
-        Directory for the data and log files; created if needed.
+        Directory for the data, result and log files; created if needed.
     jobs : int, optional
-        Number of tools in progress at the same time. Defaults to the
+        Number of tools being fetched at the same time. Defaults to the
         ``batch_jobs`` setting (``MATURITY_METER_BATCH_JOBS``).
+    fill_missing : bool, default=False
+        For tools with saved data, fetch the sources missing from it (e.g.
+        after a source was unavailable) instead of scoring it as it is.
     dry_run : bool, default=False
-        Only report what would be evaluated; create nothing.
+        Only report what would be done; create nothing.
     report : callable, optional
         Called with each :class:`BatchEvent` as it happens.
 
@@ -417,8 +442,10 @@ async def evaluate_batch(
     if jobs < 1:
         raise ValueError("jobs must be at least 1")
     summary = BatchSummary()
-    raw_dir, log_dir = output_dir / "raw", output_dir / "logs"
-    pending: list[BatchItem] = []
+    raw_dir = output_dir / "raw"
+    results_dir, log_dir = output_dir / "results", output_dir / "logs"
+    saved: list[BatchItem] = []
+    to_fetch: list[tuple[BatchItem, bool]] = []  # (item, has saved data)
     for row in rows:
         if row.error is not None:
             summary.failed += 1
@@ -428,34 +455,70 @@ async def evaluate_batch(
             report(BatchEvent("skip_url", row.row, message=row.skipped))
         elif row.item is not None:
             item = row.item
-            if (raw_dir / f"{item.stem}.json").exists():
-                summary.skipped_existing += 1
-                report(BatchEvent("skip_existing", item.row, item.biotools_id))
-            elif dry_run:
-                summary.succeeded += 1
+            has_saved = (raw_dir / f"{item.stem}.json").exists()
+            if dry_run:
+                action = (
+                    "fetch missing sources"
+                    if has_saved and fill_missing
+                    else "score saved data"
+                    if has_saved
+                    else "fetch"
+                )
+                summary.evaluated += 1
                 report(
                     BatchEvent(
-                        "plan", item.row, item.biotools_id, item.request.repository
+                        "plan",
+                        item.row,
+                        item.biotools_id,
+                        f"{action}: {item.request.repository}",
                     )
                 )
+            elif has_saved and not fill_missing:
+                saved.append(item)
             else:
-                pending.append(item)
-    if not pending:
+                to_fetch.append((item, has_saved))
+    if dry_run or not (saved or to_fetch):
         return summary
 
-    raw_dir.mkdir(parents=True, exist_ok=True)
-    log_dir.mkdir(exist_ok=True)
+    for directory in (raw_dir, results_dir, log_dir):
+        directory.mkdir(parents=True, exist_ok=True)
+
+    def save_result(item: BatchItem, data: IngestedData) -> None:
+        _write_replace(results_dir / f"{item.stem}.json", score(data).to_json() + "\n")
+
+    # Saved data needs no network, so it is scored right away.
+    for item in saved:
+        try:
+            save_result(item, IngestedData.load(raw_dir / f"{item.stem}.json"))
+        except Exception as error:
+            summary.failed += 1
+            report(
+                BatchEvent(
+                    "failed",
+                    item.row,
+                    item.biotools_id,
+                    f"saved data could not be scored: {error}",
+                )
+            )
+            continue
+        summary.evaluated += 1
+        summary.from_saved += 1
+        report(BatchEvent("scored", item.row, item.biotools_id, "from saved data"))
+    if not to_fetch:
+        return summary
+
     token = settings.github_token
     budget = _GitHubBudget(token.get_secret_value(), report) if token else None
-    if budget is None and any(i.request.host == "github.com" for i in pending):
+    if budget is None and any(i.request.host == "github.com" for i, _ in to_fetch):
         logger.warning(
             "No GitHub token is set, so GitHub allows only 60 requests an hour "
             "and most tools will lack data. Set MATURITY_METER_GITHUB_TOKEN."
         )
     slots = asyncio.Semaphore(jobs)
 
-    async def evaluate(item: BatchItem) -> bool:
+    async def evaluate(item: BatchItem, has_saved: bool) -> bool:
         log = log_dir / f"{item.stem}.log"
+        raw = raw_dir / f"{item.stem}.json"
         async with slots:
             with _log_to(log):
                 if budget is not None and item.request.host == "github.com":
@@ -467,8 +530,22 @@ async def evaluate_batch(
                 )
                 start = time.monotonic()
                 try:
-                    data = await ingest(item.request)
-                    _write_new(raw_dir / f"{item.stem}.json", data.to_json() + "\n")
+                    request = item.request
+                    if has_saved:
+                        # Only the sources missing from the saved data are fetched.
+                        request = EvaluationRequest(
+                            repository=request.repository,
+                            dois=request.dois,
+                            biotools_id=request.biotools_id,
+                            data=json.loads(raw.read_text(encoding="utf-8")),
+                        )
+                    data = await ingest(request)
+                    text = data.to_json() + "\n"
+                    if has_saved:
+                        _write_replace(raw, text)
+                    else:
+                        _write_new(raw, text)
+                    save_result(item, data)
                 except Exception as error:
                     # One tool must never stop the batch; the traceback goes
                     # to the tool's log.
@@ -495,7 +572,10 @@ async def evaluate_batch(
     resqui_limit = settings.resqui_parallel or plugin_count()
     with _route_tool_logs(), shared_limit(resqui_limit):
         async with shared_client():
-            results = await asyncio.gather(*(evaluate(item) for item in pending))
-    summary.succeeded += sum(results)
+            results = await asyncio.gather(
+                *(evaluate(item, has_saved) for item, has_saved in to_fetch)
+            )
+    summary.evaluated += sum(results)
+    summary.fetched += sum(results)
     summary.failed += len(results) - sum(results)
     return summary

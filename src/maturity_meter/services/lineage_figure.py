@@ -25,6 +25,9 @@ UTILS_PACKAGE = "maturity_meter.components.utils"
 MERMAID_SCRIPT = "https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"
 
 
+_TIER_NAMES = {1: "supporting", 2: "important", 3: "essential"}
+
+
 def _split(path: str) -> tuple[str, str]:
     """Split a read path into its source and the field within it."""
     match = re.match(r"([^.\[]+)[.]?(.*)", path)
@@ -153,13 +156,13 @@ def lineage_to_mermaid(lineage: Lineage) -> str:
         )
         for metric_name, metric in dim.metrics.items():
             reconciliation = _short(metric.reconciliation)
-            text = (
-                f"{metric_name}<br/><i>{reconciliation}</i>"
-                if reconciliation
-                else metric_name
-            )
+            title = metric_name
+            if metric.weight is not None:
+                title += f" (×{metric.weight:g} {_TIER_NAMES[int(metric.weight)]})"
+            text = f"{title}<br/><i>{reconciliation}</i>" if reconciliation else title
             metric_id = node("metrics", f"{dimension}.{metric_name}", text)
-            edge(metric_id, dimension_id, color, 2.5)
+            # The edge to the dimension is as thick as the metric's weight.
+            edge(metric_id, dimension_id, color, 1.0 + (metric.weight or 1.5))
             for path in metric.reads:
                 source, field = _split(path)
                 source_id = node("sources", source, source)

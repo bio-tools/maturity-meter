@@ -1,19 +1,22 @@
 """Security metrics.
 
 Each function computes one metric from the ingested data and returns its
-:class:`MetricResult`. Verdicts are 1 (pass) or 0 (fail); when several sources
-check the same thing, they are combined with :func:`placeholder_reconcile`.
-``dependency_management`` is shared with the compatibility dimension.
+:class:`MetricResult`. ``dependency_management`` is shared with Compatibility.
 """
 
-from maturity_meter.components.shared.metrics import dependency_management
+from maturity_meter.components.shared import dependency_management
 
-from .repository import default_branch_protected
-from .resqui_checks import human_code_review_requirement, no_leaked_credentials
+from .practices import (
+    change_control,
+    repository_hygiene,
+    security_testing,
+    vulnerability_management,
+)
 
 __all__ = [
-    "default_branch_protected",
+    "change_control",
     "dependency_management",
-    "human_code_review_requirement",
-    "no_leaked_credentials",
+    "repository_hygiene",
+    "security_testing",
+    "vulnerability_management",
 ]

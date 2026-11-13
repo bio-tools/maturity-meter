@@ -1,23 +1,22 @@
 """Sustainability metrics on issue handling."""
 
 import re
-from statistics import mean
+from statistics import median
 from typing import Any
 
 from maturity_meter.components.utils.scaling import (
-    placeholder_reconcile,
-    placeholder_scale,
+    half_point_decay_scale,
+    reconcile_priority,
 )
 from maturity_meter.components.utils.sources import (
     parse_time,
 )
 from maturity_meter.models import IngestedData, MetricResult
 
-OPEN_ISSUES_CAP = 20.0
-
-
-CLOSE_TIME_CAP_DAYS = 250.0
-
+# Close time that scores 0.5 (see half_point_decay_scale): a month, close to
+# the median of bio.tools-registered GitHub repositories (about 46 days).
+# CHAOSS gives no benchmark for a good close time.
+CLOSE_TIME_HALF_DAYS = 30.0
 
 _ISO_DURATION = re.compile(
     r"^P(?:(?P<days>\d+(?:\.\d+)?)D)?(?:T(?:(?P<hours>\d+(?:\.\d+)?)H)?"
@@ -39,38 +38,72 @@ def _iso_duration_days(value: Any) -> float | None:
     )
 
 
-def num_open_issues(data: IngestedData) -> MetricResult:
-    """Number of open issues, excluding pull requests (lower is better).
+def _close_days(data: IngestedData) -> list[float]:
+    """Days from opening to closing of each recently closed issue."""
+    durations = []
+    for issue in data.repository.get("closed_issues") or []:
+        created = parse_time(issue.get("created_at"))
+        closed = parse_time(issue.get("closed_at"))
+        if created and closed:
+            durations.append((closed - created).total_seconds() / 86400)
+    return durations
+
+
+def resolved_issue_share(data: IngestedData) -> MetricResult:
+    """Share of the reported issues that have been resolved (closed).
+
+    ``closed / (open + closed)``, already in [0, 1]. The number of open issues
+    alone grows with a tool's use rather than with neglect; relative to all
+    reported issues it shows whether the backlog is kept under control.
 
     Parameters
     ----------
     data : IngestedData
-        Ingested data; uses the GitHub/GitLab ``open_issues`` count.
+        Ingested data; uses the open-issue count and the recently closed
+        issues (pull requests excluded). On busy repositories the closed
+        issues are a capped sample of the most recent ones, so the share is
+        then a lower bound.
 
     Returns
     -------
     MetricResult
-        The scored metric (1 for none, 0 from OPEN_ISSUES_CAP), or
-        ``value=None`` if the count is unavailable.
+        The share, or ``value=None`` without issue data or without any issues.
     """
-    count = data.repository.get("open_issues")
-    if count is None:
+    open_count = data.repository.get("open_issues")
+    closed = data.repository.get("closed_issues")
+    if open_count is None or closed is None:
         return MetricResult(
-            name="num_open_issues", value=None, note="Open issue count unavailable."
+            name="resolved_issue_share",
+            value=None,
+            note="Issue counts unavailable.",
         )
+    total = open_count + len(closed)
+    if total == 0:
+        return MetricResult(
+            name="resolved_issue_share", value=None, note="No issues reported."
+        )
+    share = len(closed) / total
     return MetricResult(
-        name="num_open_issues",
-        value=placeholder_scale(count, cap=OPEN_ISSUES_CAP, invert=True),
-        note=f"{count} open issues (scores 0 from {OPEN_ISSUES_CAP:g}).",
+        name="resolved_issue_share",
+        value=share,
+        note=f"{len(closed)} of {total} reported issues closed; {open_count} open.",
+        suggestions=["Triage and close the open issues."] if share < 0.5 else [],
     )
 
 
-def avg_issue_close_time_days(data: IngestedData) -> MetricResult:
-    """Average time to close an issue, in days (lower is better).
+def issue_close_time(data: IngestedData) -> MetricResult:
+    """How quickly issues are closed (lower is better).
 
-    Combines the mean close time of the recently closed GitHub/GitLab issues
-    and OpenEBench's ``support.issue_tracking.resolve_time`` (when given as an
-    ISO 8601 duration) with :func:`placeholder_reconcile`.
+    Each source is scaled with :func:`half_point_decay_scale` (0.5 at
+    CLOSE_TIME_HALF_DAYS); the repository's own issues are used when
+    available, and OpenEBench's figure (of unknown sample and method) only
+    otherwise (:func:`reconcile_priority`):
+
+    - the median close time of the recently closed GitHub/GitLab issues (the
+      median, as CHAOSS recommends, since a few long-open issues skew the
+      mean);
+    - OpenEBench's ``support.issue_tracking.resolve_time`` (an ISO 8601
+      duration).
 
     Parameters
     ----------
@@ -80,37 +113,37 @@ def avg_issue_close_time_days(data: IngestedData) -> MetricResult:
     Returns
     -------
     MetricResult
-        The scored metric (1 for instant, 0 from CLOSE_TIME_CAP_DAYS), or
-        ``value=None`` without closed issues or a resolve time.
+        The reconciled score, or ``value=None`` without closed issues or a
+        resolve time.
     """
-    durations = []
-    for issue in data.repository.get("closed_issues") or []:
-        created = parse_time(issue.get("created_at"))
-        closed = parse_time(issue.get("closed_at"))
-        if created and closed:
-            durations.append((closed - created).total_seconds() / 86400)
-    repo_days = mean(durations) if durations else None
+    durations = _close_days(data)
+    repo_days = median(durations) if durations else None
     metrics = (data.openebench or {}).get("metrics") or {}
     tracking = (metrics.get("support") or {}).get("issue_tracking") or {}
     openebench_days = _iso_duration_days(tracking.get("resolve_time"))
-
-    days = placeholder_reconcile([repo_days, openebench_days])
-    if days is None:
+    found = {
+        f"median of {len(durations)} closed issues": repo_days,
+        "OpenEBench": openebench_days,
+    }
+    scores = {
+        source: half_point_decay_scale(days, half_point=CLOSE_TIME_HALF_DAYS)
+        for source, days in found.items()
+        if days is not None
+    }
+    if not scores:
         return MetricResult(
-            name="avg_issue_close_time_days",
+            name="issue_close_time",
             value=None,
             note="No closed issues or resolve time found.",
         )
-    sources = []
-    if repo_days is not None:
-        sources.append(f"{len(durations)} closed issues: {repo_days:.1f} days")
-    if openebench_days is not None:
-        sources.append(f"OpenEBench: {openebench_days:.1f} days")
     return MetricResult(
-        name="avg_issue_close_time_days",
-        value=placeholder_scale(days, cap=CLOSE_TIME_CAP_DAYS, invert=True),
+        name="issue_close_time",
+        value=reconcile_priority(list(scores.values())),
         note=(
-            f"{days:.1f} days on average ({'; '.join(sources)}; "
-            f"scores 0 from {CLOSE_TIME_CAP_DAYS:g})."
+            "; ".join(
+                f"{source}: {found[source]:.1f} days ({score:.2f})"
+                for source, score in scores.items()
+            )
+            + f" (scores 0.5 at {CLOSE_TIME_HALF_DAYS:g} days)."
         ),
     )

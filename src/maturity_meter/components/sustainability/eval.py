@@ -1,21 +1,22 @@
-from maturity_meter.components.utils.scaling import placeholder_dimension_score
+from maturity_meter.components.utils.importance import IMPORTANCE
+from maturity_meter.components.utils.scaling import aggregate_dimension
 from maturity_meter.models import DimensionResult, IngestedData
 
 from .metrics import (
-    avg_issue_close_time_days,
-    days_since_last_commit,
-    has_contribution_guidelines,
+    contribution_and_governance,
+    development_activity,
     inverse_simpson_index,
-    num_open_issues,
+    issue_close_time,
+    resolved_issue_share,
 )
 
 
 def eval(data: IngestedData) -> DimensionResult:
     metrics = [
-        avg_issue_close_time_days(data),
-        num_open_issues(data),
-        days_since_last_commit(data),
+        development_activity(data),
+        issue_close_time(data),
+        resolved_issue_share(data),
         inverse_simpson_index(data),
-        has_contribution_guidelines(data),
+        contribution_and_governance(data),
     ]
-    return DimensionResult(value=placeholder_dimension_score(metrics), metrics=metrics)
+    return aggregate_dimension(metrics, IMPORTANCE["sustainability"])

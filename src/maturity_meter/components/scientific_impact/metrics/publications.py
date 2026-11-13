@@ -4,15 +4,16 @@ from statistics import mean
 from typing import Any
 
 from maturity_meter.components.utils.scaling import (
-    placeholder_reconcile,
-    placeholder_scale,
+    log_scale,
+    ratio_to_average_scale,
+    reconcile_any,
 )
 from maturity_meter.models import IngestedData, MetricResult
 
-CITATION_CAP = 100.0
-
-
-FWCI_CAP = 2.0
+# Total citations that score 1 on the log scale (see log_scale): about the
+# top 10% of the publications of bio.tools-registered tools (median 19 in
+# OpenAlex).
+CITATION_REFERENCE = 100.0
 
 
 _ADD_DOIS = "Add the DOIs of publications describing the software."
@@ -46,6 +47,16 @@ def _citation_counts(data: IngestedData) -> dict[str, dict[str, int]]:
     for doi, record in data.europe_pmc.items():
         if record is not None:
             add(doi, "Europe PMC", record.get("citedByCount"))
+    for publication in (data.biotools or {}).get("publication") or []:
+        key = publication.get("doi") or (
+            f"pmid:{publication['pmid']}" if publication.get("pmid") else None
+        )
+        if key:
+            add(
+                str(key),
+                "bio.tools",
+                (publication.get("metadata") or {}).get("citationCount"),
+            )
     metrics = (data.openebench or {}).get("metrics") or {}
     for publication in (metrics.get("project") or {}).get("publications") or []:
         for entry in publication.get("entries") or []:
@@ -58,13 +69,15 @@ def _citation_counts(data: IngestedData) -> dict[str, dict[str, int]]:
 
 
 def citation_count(data: IngestedData) -> MetricResult:
-    """Citations summed over all publications, scaled up to CITATION_CAP.
+    """Citations of the software's publications, on a log scale.
 
     Every source with a count contributes: OpenAlex ``cited_by_count`` and
-    Europe PMC ``citedByCount`` for the request's DOIs, and OpenEBench's
-    ``cit_count`` for the tool's registered publications. Counts of the same
-    publication from different sources are combined with
-    :func:`placeholder_reconcile`; the results are summed over publications.
+    Europe PMC ``citedByCount`` for the request's DOIs, and the bio.tools
+    ``citationCount`` and OpenEBench ``cit_count`` of the tool's registered
+    publications. Each source's counts are summed over its publications and
+    scaled with :func:`log_scale` (1 from CITATION_REFERENCE); the highest
+    score is used (:func:`reconcile_any`), since every database undercounts by
+    a different amount and the highest count is the most complete.
 
     Parameters
     ----------
@@ -90,17 +103,23 @@ def citation_count(data: IngestedData) -> MetricResult:
             value=None,
             note="No citation counts found for the publications.",
         )
-    per_publication = [
-        placeholder_reconcile(list(c.values())) or 0.0 for c in counts.values()
-    ]
-    total = sum(per_publication)
-    sources = sorted({source for c in counts.values() for source in c})
+    totals: dict[str, int] = {}
+    for per_source in counts.values():
+        for source, count in per_source.items():
+            totals[source] = totals.get(source, 0) + count
+    scores = {
+        source: log_scale(total, reference=CITATION_REFERENCE)
+        for source, total in totals.items()
+    }
     return MetricResult(
         name="citation_count",
-        value=placeholder_scale(total, cap=CITATION_CAP),
+        value=reconcile_any(list(scores.values())),
         note=(
-            f"{total:.0f} citations over {len(counts)} publication(s), "
-            f"from {', '.join(sources)} (scores 1 from {CITATION_CAP:g})."
+            "; ".join(
+                f"{source}: {totals[source]} citations ({scores[source]:.2f})"
+                for source in sorted(totals)
+            )
+            + f" (log scale; scores 1 from {CITATION_REFERENCE:g})."
         ),
     )
 
@@ -117,8 +136,9 @@ def fwci(data: IngestedData) -> MetricResult:
     Returns
     -------
     MetricResult
-        The scored metric (scaled up to FWCI_CAP), or ``value=None``
-        without DOIs or FWCI values.
+        The scored metric, ``FWCI / (1 + FWCI)`` (see
+        :func:`ratio_to_average_scale`): 0.5 at the field average; or
+        ``value=None`` without DOIs or FWCI values.
     """
     if not data.request.dois:
         return MetricResult(
@@ -132,9 +152,9 @@ def fwci(data: IngestedData) -> MetricResult:
     average = mean(values)
     return MetricResult(
         name="fwci",
-        value=placeholder_scale(average, cap=FWCI_CAP),
+        value=ratio_to_average_scale(average),
         note=(
             f"Mean FWCI {average:.2f} over {len(values)} publication(s); "
-            f"1 is the field average (scores 1 from {FWCI_CAP:g})."
+            "1 is the field average and scores 0.5."
         ),
     )

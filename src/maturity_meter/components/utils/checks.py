@@ -1,10 +1,39 @@
-"""Helpers to read yes/no verdicts: resqui checks and repository files."""
+"""Helpers to read yes/no verdicts and to build metrics from them.
 
-from collections.abc import Iterable
+A metric is either a single question answered by several sources
+(:func:`verdict_metric`) or several distinct questions about one concept, its
+aspects (:func:`aspect_metric`). Each question reconciles its sources with one
+of three rules (see :data:`Rule`); aspects are combined with
+:func:`combine_aspects`.
+"""
 
-from maturity_meter.components.utils.scaling import placeholder_reconcile
+from collections.abc import Collection, Iterable, Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass
+from typing import Any, Literal
+
+from maturity_meter.components.utils.reliability import Evidence, assessment_tool
+from maturity_meter.components.utils.scaling import (
+    combine_aspects,
+    reconcile_any,
+    reconcile_evidence,
+    reconcile_priority,
+)
 from maturity_meter.components.utils.sources import has_file
 from maturity_meter.models import IngestedData, MetricResult
+
+Rule = Literal["evidence", "any", "priority"]
+"""How the sources of one question are reconciled.
+
+- ``"evidence"``: the sources examine the same thing (e.g. the repository's
+  licence file), so they are weighed by the reliability of their kind with
+  :func:`reconcile_evidence`; every source must be :class:`Evidence`.
+- ``"any"``: the sources look in different places or at alternatives (e.g.
+  Bioconda or PyPI), so one of them suffices: :func:`reconcile_any`.
+- ``"priority"``: the first available source, in the order given, e.g. a
+  direct measurement before a second-hand figure: :func:`reconcile_priority`.
+"""
 
 # resqui does not serialize a pass/fail flag; the verdict is the plugin's
 # ``output`` string. Other outputs (e.g. "error", "indeterminate") give no
@@ -16,7 +45,11 @@ FAILING_OUTPUTS = {"false", "invalid", "insecure"}
 NO_RESQUI_NOTE = "resqui did not check this (it needs Docker and a GitHub repository)."
 
 
-def resqui_verdict(data: IngestedData, indicator: str) -> float | None:
+def resqui_verdict(
+    data: IngestedData,
+    indicator: str,
+    plugins: Collection[str] | None = None,
+) -> float | None:
     """Verdict of the resqui check(s) for one EVERSE indicator.
 
     Parameters
@@ -25,25 +58,32 @@ def resqui_verdict(data: IngestedData, indicator: str) -> float | None:
         Ingested data; uses ``quality_checks``.
     indicator : str
         EVERSE indicator identifier, e.g. ``"no_leaked_credentials"``.
+    plugins : collection of str, optional
+        Only use the checks of these plugins (``checkingSoftware`` names, e.g.
+        ``{"RSFC", "OEBFAIR"}``); all plugins by default. Used to leave out a
+        plugin whose verdict for the indicator is known to be unreliable.
 
     Returns
     -------
     float | None
-        1.0 if passed, 0.0 if failed, reconciled with
-        :func:`placeholder_reconcile` when several plugins check the indicator;
-        None if resqui did not check it or gave no verdict.
+        1.0 if passed, 0.0 if failed (the plugins' verdicts weighed as
+        assessment-tool evidence when several check the indicator); None if
+        resqui did not check it or gave no verdict.
     """
     verdicts: list[float | None] = []
     for check in (data.quality_checks or {}).get("checks") or []:
         assessed = str((check.get("assessesIndicator") or {}).get("@id", ""))
         if assessed.rstrip("/").rsplit("/", 1)[-1] != indicator:
             continue
+        software = (check.get("checkingSoftware") or {}).get("name")
+        if plugins is not None and software not in plugins:
+            continue
         output = str(check.get("output", "")).lower()
         if output in PASSING_OUTPUTS:
             verdicts.append(1.0)
         elif output in FAILING_OUTPUTS:
             verdicts.append(0.0)
-    return placeholder_reconcile(verdicts)
+    return reconcile_evidence([assessment_tool(v) for v in verdicts])
 
 
 def has_any_file(data: IngestedData, paths: Iterable[str]) -> float | None:
@@ -67,73 +107,265 @@ def has_any_file(data: IngestedData, paths: Iterable[str]) -> float | None:
     return has_file(data, lambda f: f in wanted)
 
 
-def findings_note(findings: dict[str, float | None], yes: str, no: str) -> str:
-    """A note naming each source's verdict, so a disagreement is explained.
+@dataclass(frozen=True)
+class Pool:
+    """Several sources examining the same thing, weighed as one finding.
+
+    Used inside an ``"any"`` question for one place that several sources
+    examine, e.g. the repository's licence file (the GitHub licence, the file
+    itself, and the RSFC and OEBFAIR checks), next to other places.
 
     Parameters
     ----------
-    findings : dict[str, float | None]
-        Verdict per source (1 or 0); sources without a verdict are skipped.
-    yes, no : str
-        Wording for a positive and a negative verdict.
+    evidence : dict[str, Evidence]
+        Each source's answer and kind, reconciled with
+        :func:`reconcile_evidence`.
+    """
+
+    evidence: dict[str, Evidence]
+
+    @property
+    def value(self) -> float | None:
+        """The weighed answer of the pooled sources."""
+        return reconcile_evidence(list(self.evidence.values()))
+
+
+Finding = Evidence | Pool | float | None
+"""One source's answer: with its kind of source (Evidence), a Pool of sources,
+or a plain value (only for the ``"any"`` and ``"priority"`` rules)."""
+
+
+def _value(finding: Finding) -> float | None:
+    if isinstance(finding, Evidence | Pool):
+        return finding.value
+    return finding
+
+
+def reconcile(findings: dict[str, Finding], rule: Rule) -> float | None:
+    """Reconcile the sources of one question with ``rule`` (see :data:`Rule`).
+
+    Parameters
+    ----------
+    findings : dict[str, Finding]
+        Each source's answer, by source name.
+    rule : {"evidence", "any", "priority"}
+        How the answers are reconciled.
 
     Returns
     -------
-    str
-        E.g. ``"OpenSSF Scorecard: not found; Dependabot/Renovate config: found."``
+    float | None
+        The reconciled answer, or None if no source has one.
+
+    Raises
+    ------
+    TypeError
+        If the ``"evidence"`` rule gets a source without a kind of source.
     """
-    return (
-        "; ".join(
-            f"{source}: {yes if verdict else no}"
-            for source, verdict in findings.items()
-            if verdict is not None
+    if rule == "evidence":
+        evidence = []
+        for source, finding in findings.items():
+            if not isinstance(finding, Evidence):
+                raise TypeError(f"{source}: the evidence rule needs a source kind")
+            evidence.append(finding)
+        return reconcile_evidence(evidence)
+    values = [_value(finding) for finding in findings.values()]
+    return reconcile_any(values) if rule == "any" else reconcile_priority(values)
+
+
+# Set by record_aspects: where aspect_metric and verdict_metric describe the
+# questions and sources they combine, for the lineage and overview.
+_recorded: ContextVar[list[dict[str, Any]] | None] = ContextVar(
+    "recorded_aspects", default=None
+)
+
+
+@contextmanager
+def record_aspects() -> Iterator[list[dict[str, Any]]]:
+    """Record the aspects, rules and sources of the metrics run inside.
+
+    Yields
+    ------
+    list of dict
+        Filled with one entry per aspect: its ``name`` (empty for a
+        single-question metric), ``rule`` and ``sources``, each source with
+        its ``name``, ``kind`` (None without one) and, for a pool, its own
+        ``sources``.
+    """
+    log: list[dict[str, Any]] = []
+    token = _recorded.set(log)
+    try:
+        yield log
+    finally:
+        _recorded.reset(token)
+
+
+def _source_record(name: str, finding: Finding) -> dict[str, Any]:
+    if isinstance(finding, Pool):
+        return {
+            "name": name,
+            "kind": "pool",
+            "sources": [_source_record(n, e) for n, e in finding.evidence.items()],
+        }
+    kind = finding.kind.value if isinstance(finding, Evidence) else None
+    return {"name": name, "kind": kind, "sources": []}
+
+
+def _record(name: str, rule: Rule, findings: dict[str, Finding]) -> None:
+    log = _recorded.get()
+    if log is not None:
+        log.append(
+            {
+                "name": name,
+                "rule": rule,
+                "sources": [_source_record(n, f) for n, f in findings.items()],
+            }
         )
-        + "."
-    )
+
+
+def _wording(value: float) -> str:
+    if value == 1:
+        return "yes"
+    if value == 0:
+        return "no"
+    return f"{value:.2f}"
+
+
+def _below_half(value: float | None) -> bool:
+    return value is not None and value < 0.5
+
+
+def _describe(findings: dict[str, Finding]) -> str:
+    """Each source's answer, e.g. ``"LICENSE file yes, bio.tools no"``."""
+    parts = []
+    for source, finding in findings.items():
+        value = _value(finding)
+        if value is None:
+            continue
+        if isinstance(finding, Pool):
+            inner = _describe(dict(finding.evidence))
+            parts.append(f"{source} {_wording(value)} [{inner}]")
+        else:
+            parts.append(f"{source} {_wording(value)}")
+    return ", ".join(parts)
 
 
 def verdict_metric(
     name: str,
-    findings: dict[str, float | None],
+    findings: dict[str, Finding],
     *,
-    yes: str = "found",
-    no: str = "not found",
+    rule: Rule,
     suggestion: str | None = None,
     missing: str = "No source could check this.",
     detail: str = "",
 ) -> MetricResult:
-    """A yes/no metric that reconciles the verdicts of several sources.
+    """A metric answering one question from several sources.
 
     Parameters
     ----------
     name : str
         Metric name.
-    findings : dict[str, float | None]
-        Verdict per source (1 or 0, or None when the source has no verdict).
-        With several sources they are combined with
-        :func:`placeholder_reconcile`; a single source is used as it is.
-    yes, no : str
-        Wording for a positive and a negative verdict in the note.
+    findings : dict[str, Finding]
+        Each source's answer, by source name.
+    rule : {"evidence", "any", "priority"}
+        How the answers are reconciled (see :data:`Rule`).
     suggestion : str, optional
-        Suggestion given when no source found it (value 0).
+        Suggestion given when the answer scores below 0.5.
     missing : str
-        Note when no source has a verdict.
+        Note when no source has an answer.
     detail : str, optional
         Extra text appended to the note (e.g. which file was found).
 
     Returns
     -------
     MetricResult
-        The reconciled metric, with a note naming each source's verdict.
+        The reconciled metric, with a note giving each source's answer.
     """
-    verdicts = list(findings.values())
-    value = verdicts[0] if len(verdicts) == 1 else placeholder_reconcile(verdicts)
+    _record("", rule, findings)
+    value = reconcile(findings, rule)
     if value is None:
         return MetricResult(name=name, value=None, note=missing)
-    note = findings_note(findings, yes, no)
+    note = f"{_describe(findings)}. {detail}".strip()
     return MetricResult(
         name=name,
         value=value,
-        note=f"{note} {detail}".strip(),
-        suggestions=[suggestion] if suggestion and value == 0 else [],
+        note=note,
+        suggestions=[suggestion] if suggestion and _below_half(value) else [],
+    )
+
+
+@dataclass(frozen=True)
+class Aspect:
+    """One question a metric answers, and every source's answer to it.
+
+    Parameters
+    ----------
+    findings : dict[str, Finding]
+        Each source's answer, by source name: a score in [0, 1] (1 or 0 for
+        yes/no checks), or None when the source has no answer.
+    suggestion : str, optional
+        Suggestion given when the aspect scores below 0.5.
+    rule : {"evidence", "any", "priority"}, default="any"
+        How the answers are reconciled (see :data:`Rule`).
+    """
+
+    findings: dict[str, Finding]
+    suggestion: str | None = None
+    rule: Rule = "any"
+
+    @property
+    def value(self) -> float | None:
+        """The reconciled answer, or None if no source has one."""
+        return reconcile(self.findings, self.rule)
+
+
+def aspect_metric(
+    name: str,
+    aspects: dict[str, Aspect],
+    *,
+    missing: str = "No source could check this.",
+) -> MetricResult:
+    """A metric made of several aspects (distinct questions) of one concept.
+
+    Each aspect reconciles the sources that answer it; the metric's value
+    combines the assessed aspects with :func:`combine_aspects`. An aspect
+    no source could answer is left out rather than counted as a no.
+
+    Parameters
+    ----------
+    name : str
+        Metric name.
+    aspects : dict[str, Aspect]
+        The metric's aspects, by a short description (e.g. ``"declared"``).
+    missing : str
+        Note when no aspect could be assessed.
+
+    Returns
+    -------
+    MetricResult
+        The combined metric. Its note gives each aspect's answer and every
+        source's answer to it; its suggestions those of the aspects scoring
+        below 0.5.
+    """
+    for label, aspect in aspects.items():
+        _record(label, aspect.rule, aspect.findings)
+    values = {label: aspect.value for label, aspect in aspects.items()}
+    value = combine_aspects(list(values.values()))
+    if value is None:
+        return MetricResult(name=name, value=None, note=missing)
+    parts = []
+    for label, aspect in aspects.items():
+        answer = values[label]
+        if answer is None:
+            parts.append(f"{label}: unknown")
+        else:
+            parts.append(f"{label}: {_wording(answer)} ({_describe(aspect.findings)})")
+    return MetricResult(
+        name=name,
+        value=value,
+        note="; ".join(parts) + ".",
+        suggestions=[
+            aspect.suggestion
+            for label, aspect in aspects.items()
+            if aspect.suggestion and _below_half(values[label])
+        ],
     )
