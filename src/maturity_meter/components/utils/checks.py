@@ -7,9 +7,11 @@ of three rules (see :data:`Rule`); aspects are combined with
 :func:`combine_aspects`.
 """
 
-from collections.abc import Collection, Iterable
+from collections.abc import Collection, Iterable, Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal
 
 from maturity_meter.components.utils.reliability import Evidence, assessment_tool
 from maturity_meter.components.utils.scaling import (
@@ -170,6 +172,56 @@ def reconcile(findings: dict[str, Finding], rule: Rule) -> float | None:
     return reconcile_any(values) if rule == "any" else reconcile_priority(values)
 
 
+# Set by record_aspects: where aspect_metric and verdict_metric describe the
+# questions and sources they combine, for the lineage and overview.
+_recorded: ContextVar[list[dict[str, Any]] | None] = ContextVar(
+    "recorded_aspects", default=None
+)
+
+
+@contextmanager
+def record_aspects() -> Iterator[list[dict[str, Any]]]:
+    """Record the aspects, rules and sources of the metrics run inside.
+
+    Yields
+    ------
+    list of dict
+        Filled with one entry per aspect: its ``name`` (empty for a
+        single-question metric), ``rule`` and ``sources``, each source with
+        its ``name``, ``kind`` (None without one) and, for a pool, its own
+        ``sources``.
+    """
+    log: list[dict[str, Any]] = []
+    token = _recorded.set(log)
+    try:
+        yield log
+    finally:
+        _recorded.reset(token)
+
+
+def _source_record(name: str, finding: Finding) -> dict[str, Any]:
+    if isinstance(finding, Pool):
+        return {
+            "name": name,
+            "kind": "pool",
+            "sources": [_source_record(n, e) for n, e in finding.evidence.items()],
+        }
+    kind = finding.kind.value if isinstance(finding, Evidence) else None
+    return {"name": name, "kind": kind, "sources": []}
+
+
+def _record(name: str, rule: Rule, findings: dict[str, Finding]) -> None:
+    log = _recorded.get()
+    if log is not None:
+        log.append(
+            {
+                "name": name,
+                "rule": rule,
+                "sources": [_source_record(n, f) for n, f in findings.items()],
+            }
+        )
+
+
 def _wording(value: float) -> str:
     if value == 1:
         return "yes"
@@ -228,6 +280,7 @@ def verdict_metric(
     MetricResult
         The reconciled metric, with a note giving each source's answer.
     """
+    _record("", rule, findings)
     value = reconcile(findings, rule)
     if value is None:
         return MetricResult(name=name, value=None, note=missing)
@@ -293,6 +346,8 @@ def aspect_metric(
         source's answer to it; its suggestions those of the aspects scoring
         below 0.5.
     """
+    for label, aspect in aspects.items():
+        _record(label, aspect.rule, aspect.findings)
     values = {label: aspect.value for label, aspect in aspects.items()}
     value = combine_aspects(list(values.values()))
     if value is None:

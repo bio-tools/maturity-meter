@@ -12,6 +12,7 @@ compare and select tools in the Research Software Ecosystem.
 - [Developer guide](developer.md)
 - [Technical reference](reference.md)
 - [Metrics](metrics.md)
+- [Overview](overview.md)
 - [Metric lineage](lineage.md)
 
 Licensed under [Apache-2.0](https://spdx.org/licenses/Apache-2.0.html); see

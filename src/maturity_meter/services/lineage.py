@@ -30,10 +30,49 @@ from typing import Any, cast
 
 from pydantic import BaseModel, Field
 
+from maturity_meter.components.utils.checks import record_aspects
+from maturity_meter.components.utils.importance import IMPORTANCE
 from maturity_meter.components.utils.roles import ROLE_ATTRIBUTE
 from maturity_meter.models import Evaluation, IngestedData, MetricResult
 
 COMPONENTS_PACKAGE = "maturity_meter.components"
+
+
+class SourceLineage(BaseModel):
+    """One source answering an aspect of a metric.
+
+    Parameters
+    ----------
+    name : str
+        Source name, as in the metric's note (e.g. ``"LICENSE file"``).
+    kind : str | None
+        Kind of source, which sets its reliability (e.g. ``"repository"``), or
+        ``"pool"`` for several sources weighed together; None if untyped.
+    sources : list[SourceLineage]
+        The pooled sources, for a pool.
+    """
+
+    name: str
+    kind: str | None = None
+    sources: list["SourceLineage"] = Field(default_factory=list)
+
+
+class AspectLineage(BaseModel):
+    """One question a metric answers, and how its sources are reconciled.
+
+    Parameters
+    ----------
+    name : str
+        Aspect name; empty for a metric that answers a single question.
+    rule : str
+        Reconciliation rule: ``"evidence"``, ``"any"`` or ``"priority"``.
+    sources : list[SourceLineage]
+        The sources answering it.
+    """
+
+    name: str
+    rule: str
+    sources: list[SourceLineage] = Field(default_factory=list)
 
 
 class MetricLineage(BaseModel):
@@ -43,6 +82,14 @@ class MetricLineage(BaseModel):
     ----------
     function : str
         Qualified name of the metric function.
+    description : str
+        First line of the metric function's docstring.
+    weight : float | None
+        Importance of the metric in this dimension's score (1 supporting, 2
+        important, 3 essential), or None if unweighted.
+    aspects : list[AspectLineage]
+        Questions the metric answers and their sources, for metrics built from
+        yes/no checks; empty for numeric metrics.
     reads : list[str]
         Ingested fields the metric read, e.g. ``"openalex[*].fwci"``; ``[*]``
         stands for any DOI, IRI or list item.
@@ -56,6 +103,9 @@ class MetricLineage(BaseModel):
     """
 
     function: str
+    description: str = ""
+    weight: float | None = None
+    aspects: list[AspectLineage] = Field(default_factory=list)
     reads: list[str] = Field(default_factory=list)
     scaling: list[str] = Field(default_factory=list)
     reconciliation: list[str] = Field(default_factory=list)
@@ -359,13 +409,22 @@ def trace_lineage(datasets: Iterable[IngestedData]) -> Lineage:
             dim_functions |= called
             for fn in metric_functions:
                 log: set[str] = set()
-                result, called = _called_functions(
-                    partial(fn, _recording(data, log)), exclude={_qualified(fn)}
-                )
+                with record_aspects() as aspects:
+                    result, called = _called_functions(
+                        partial(fn, _recording(data, log)), exclude={_qualified(fn)}
+                    )
                 inside_metrics |= set(called)
+                weight = IMPORTANCE.get(dimension, {}).get(result.name)
                 metric = dim.metrics.setdefault(
-                    result.name, MetricLineage(function=_qualified(fn))
+                    result.name,
+                    MetricLineage(
+                        function=_qualified(fn),
+                        description=(inspect.getdoc(fn) or "").split("\n")[0],
+                        weight=None if weight is None else float(weight),
+                    ),
                 )
+                if aspects and not metric.aspects:
+                    metric.aspects = [AspectLineage(**a) for a in aspects]
                 metric.reads = _leaves({*metric.reads, *log})
                 metric.scaling = _merge(metric.scaling, called, "scaling")
                 metric.reconciliation = _merge(

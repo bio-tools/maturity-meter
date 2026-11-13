@@ -34,3 +34,25 @@ def test_probes_exercise_every_metric():
         if not metric.reads
     ]
     assert not without_reads, without_reads
+
+
+def test_overview_covers_every_metric_with_its_weight():
+    """Every traced metric has a weight and appears in the overview, linked."""
+    from maturity_meter.services.overview import overview_markdown
+
+    lineage = trace_lineage(IngestedData.load(p) for p in sorted(PROBES.glob("*.json")))
+    unweighted = [
+        f"{dimension}.{name}"
+        for dimension, dim in lineage.dimensions.items()
+        for name, metric in dim.metrics.items()
+        if metric.weight is None
+    ]
+    assert not unweighted, unweighted
+    page = overview_markdown(lineage, repository="https://example.org/repo", ref="abc")
+    missing = [
+        name
+        for dim in lineage.dimensions.values()
+        for name in dim.metrics
+        if f"[`{name}`](https://example.org/repo/blob/abc/src/" not in page
+    ]
+    assert not missing, missing

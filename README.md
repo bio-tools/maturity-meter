@@ -44,6 +44,9 @@ reuse it later; missing or null sources are fetched again.
 `maturity-meter lineage data.json -o lineage.json` records, as JSON, which
 ingested fields and helper functions each metric uses; add
 `--figure lineage.html` to draw it as a flow figure.
+`maturity-meter overview tests/fixtures/lineage/*.json -o overview.md` writes
+tables of every dimension, metric, source, weight and function, linked to
+their definitions in the code.
 
 Compare reported metrics from saved data files in a LibreOffice Calc spreadsheet:
 

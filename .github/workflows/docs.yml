@@ -24,6 +24,10 @@ jobs:
           mkdir -p docs/lineage
           poetry run maturity-meter lineage tests/fixtures/lineage/*.json \
             -o docs/lineage/lineage.json --figure docs/lineage/lineage.html
+      - name: Generate the overview tables
+        run: |
+          poetry run maturity-meter overview tests/fixtures/lineage/*.json \
+            -o docs/overview.md --ref "${{ github.sha }}"
       - name: Build documentation
         run: poetry run zensical build --strict
       - name: Upload Pages artifact

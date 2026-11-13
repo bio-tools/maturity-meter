@@ -25,5 +25,6 @@ build/
 site/
 docs/build/
 docs/lineage/
+docs/overview.md
 results/
 node_modules/

@@ -290,6 +290,28 @@ e.g. to embed it in Markdown.
 Functions get their role from the `@role(...)` decorator in
 `maturity_meter.components.utils.roles` (`"scaling"`, `"reconciliation"` or
 `"aggregation"`); tag new helpers with it so they show up in the right place.
+The lineage also records each metric's weight in its dimension, and the
+aspects, reconciliation rules and kinds of sources of the metrics built from
+yes/no checks; the figure shows the weight on each metric and as the width of
+its edge to the dimension.
+
+## Overview
+
+To get tables of every dimension, metric, source, weight and function, with
+links to where each is defined in the code, trace the lineage probes (which
+exercise every metric):
+
+```bash
+poetry run maturity-meter overview tests/fixtures/lineage/*.json -o overview.md
+```
+
+The page lists the dimensions with their essential metrics and aggregation;
+each metric with its weight, description, aspects (with their reconciliation
+rule and the kind of each source), the fields it reads and its scaling; the
+kinds of sources with their accuracy and vote weight; the ingested data and
+which metrics read it; and the scaling, reconciliation and aggregation
+functions. Links point to the `main` branch; add `--ref <commit>` to pin
+them. The documentation build generates it as the Overview page.
 
 FAIR-Checker evaluates the repository URL via its official API, separately
 from resqui. The bundled resqui configuration runs RSFC, OEBFAIR, HowFairIs
