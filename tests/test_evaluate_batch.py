@@ -8,7 +8,7 @@ from typer.testing import CliRunner
 
 from maturity_meter.adapters.cli.app import app
 from maturity_meter.config import Settings
-from maturity_meter.models import IngestedData
+from maturity_meter.models import EvaluationRequest, IngestedData
 from maturity_meter.services import batch
 
 
@@ -74,10 +74,15 @@ def test_batch_and_resume(tmp_path, requests):
         "0002-one.json",
         "0003-two.json",
     ]
+    result = json.loads((output / "results/0002-one.json").read_text())
+    assert set(result["maturity"]) >= {"fairness", "security"}
+    assert (output / "results/0003-two.json").exists()
     before = (output / "raw/0002-one.json").read_text()
     again = run_batch(source, output)
     assert again.exit_code == 0
-    assert "skipped existing: 2" in again.stdout
+    # Saved data is scored again without fetching anything.
+    assert "from saved data: 2" in again.stdout
+    assert "SCORED row 2 one" in again.stdout
     assert len(requests) == 2
     assert (output / "raw/0002-one.json").read_text() == before
 
@@ -94,12 +99,18 @@ def test_bad_row_and_existing_output_are_reported(tmp_path, requests):
     )
     output = tmp_path / "out"
     (output / "raw").mkdir(parents=True)
-    (output / "raw/0002-one.json").write_text("do not overwrite")
+    saved = IngestedData(
+        request=EvaluationRequest(repository="https://github.com/a/b"),
+        repository={"repo": {"stargazers_count": 7}},
+    )
+    saved.save(output / "raw/0002-one.json")
+    before = (output / "raw/0002-one.json").read_text()
     result = run_batch(source, output)
     assert result.exit_code == 1
-    assert "skipped existing: 1" in result.stdout
+    assert "from saved data: 1" in result.stdout
     assert "row 3" in result.stderr and "row 4" in result.stderr
-    assert (output / "raw/0002-one.json").read_text() == "do not overwrite"
+    assert (output / "raw/0002-one.json").read_text() == before
+    assert (output / "results/0002-one.json").exists()
     assert requests == []
 
 
@@ -109,7 +120,7 @@ def test_dry_run_does_not_create_output(tmp_path, requests):
     output = tmp_path / "out"
     result = run_batch(source, output, "--dry-run")
     assert result.exit_code == 0
-    assert "PLAN row 2 one" in result.stdout
+    assert "PLAN row 2 one: fetch: https://github.com/a/b" in result.stdout
     assert not output.exists()
     assert requests == []
 
@@ -131,6 +142,7 @@ def test_failed_evaluation_does_not_stop_next_row(tmp_path, monkeypatch, request
     assert result.stderr.count("evaluation broke") == 2
     assert len(requests) == 2
     assert list((output / "raw").iterdir()) == []
+    assert list((output / "results").iterdir()) == []
     log = (output / "logs/0002-one.log").read_text()
     assert "RuntimeError: evaluation broke" in log
 
@@ -141,3 +153,21 @@ def test_invalid_doi_is_reported_in_dry_run(tmp_path, requests):
     result = run_batch(source, tmp_path / "out", "--dry-run")
     assert result.exit_code == 1
     assert "invalid DOI" in result.stderr
+
+
+def test_fill_missing_fetches_only_what_saved_data_lacks(tmp_path, requests):
+    source = tmp_path / "input.csv"
+    write_csv(source, [row("one", "https://github.com/a/b")])
+    output = tmp_path / "out"
+    (output / "raw").mkdir(parents=True)
+    saved = IngestedData(
+        request=EvaluationRequest(repository="https://github.com/a/b"),
+        repository={"repo": {"stargazers_count": 7}},
+    )
+    saved.save(output / "raw/0002-one.json")
+    result = run_batch(source, output, "--fill-missing")
+    assert result.exit_code == 0, result.output
+    assert "fetched: 1" in result.stdout
+    # The saved sources are passed on, so only missing ones would be fetched.
+    assert requests[0].data.repository == {"repo": {"stargazers_count": 7}}
+    assert (output / "results/0002-one.json").exists()

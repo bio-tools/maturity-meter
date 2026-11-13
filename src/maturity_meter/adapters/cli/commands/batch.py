@@ -38,8 +38,8 @@ def format_event(event: BatchEvent) -> tuple[str, bool]:
             return f"ERROR {label}: {event.message}", True
         case "skip_url":
             return f"SKIP {label}: {event.message}", True
-        case "skip_existing":
-            return f"SKIP {label}: data file already exists", False
+        case "scored":
+            return f"SCORED {label}: {event.message}", False
         case "plan":
             return f"PLAN {label}: {event.message}", False
         case "start":
@@ -59,12 +59,14 @@ def _report(event: BatchEvent) -> None:
 
 
 def _summary_line(summary: BatchSummary, dry_run: bool) -> str:
-    action = "Planned" if dry_run else "Completed"
-    return (
-        f"{action}: {summary.succeeded}; skipped existing: "
-        f"{summary.skipped_existing}; skipped URLs: {summary.skipped_urls}; "
-        f"errors: {summary.failed}"
-    )
+    if dry_run:
+        done = f"Planned: {summary.evaluated}"
+    else:
+        done = (
+            f"Evaluated: {summary.evaluated} (fetched: {summary.fetched}, "
+            f"from saved data: {summary.from_saved})"
+        )
+    return f"{done}; skipped URLs: {summary.skipped_urls}; errors: {summary.failed}"
 
 
 def command(
@@ -83,8 +85,9 @@ def command(
             "-o",
             file_okay=False,
             help=(
-                "Directory for the data (raw/) and log (logs/) files. Tools that "
-                "already have a data file there are skipped."
+                "Directory for the data (raw/), result (results/) and log (logs/) "
+                "files. Tools that already have a data file there are scored from "
+                "it without fetching."
             ),
         ),
     ],
@@ -102,19 +105,36 @@ def command(
             ),
         ),
     ] = None,
+    fill_missing: Annotated[
+        bool,
+        typer.Option(
+            "--fill-missing",
+            help=(
+                "For tools with saved data, fetch the sources missing from it "
+                "(e.g. after a source was down) instead of only scoring it."
+            ),
+        ),
+    ] = False,
     dry_run: Annotated[
         bool,
         typer.Option("--dry-run", help="Validate and list rows without evaluating."),
     ] = False,
 ) -> None:
-    """Evaluate every tool in a bio.tools CSV and save their data."""
+    """Evaluate every tool in a bio.tools CSV, saving their data and results."""
     try:
         rows = read_csv(csv_file)
     except (OSError, csv.Error, ValueError) as error:
         typer.echo(f"Error: {error}", err=True)
         raise typer.Exit(code=1) from error
     summary = asyncio.run(
-        evaluate_batch(rows, output_dir, jobs=jobs, dry_run=dry_run, report=_report)
+        evaluate_batch(
+            rows,
+            output_dir,
+            jobs=jobs,
+            fill_missing=fill_missing,
+            dry_run=dry_run,
+            report=_report,
+        )
     )
     typer.echo(_summary_line(summary, dry_run))
     if summary.failed:

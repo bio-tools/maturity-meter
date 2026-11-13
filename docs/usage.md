@@ -45,15 +45,22 @@ maturity-meter batch "results/bio.tools entries - github_gitlab_tools_with_publi
   --output-dir results/batch
 ```
 
-Add `--dry-run` to list and validate entries without running evaluations or
-creating output. Ingested data is saved in `results/batch/raw/`, with CSV row
-numbers and bio.tools IDs in the filenames, as soon as each tool is done. No
-score files are saved. Existing data files are skipped and never overwritten,
-so an interrupted batch continues where it stopped when run again; failed
-evaluations do not leave a data file to be mistaken for a completed run. Use a
-separate output directory for each CSV. Each tool's log is written to
-`results/batch/logs/`, named like its data file; the terminal shows one line
-per tool as it starts and finishes.
+Add `--dry-run` to list and validate entries, and what would be done for
+each (fetch, or score saved data), without evaluating or creating output.
+Each tool's ingested data is saved in `results/batch/raw/` as soon as it is
+fetched, and its scored result (as `evaluate` prints it) in
+`results/batch/results/`, both with the CSV row number and bio.tools ID in the
+filename. A tool that already has a data file is **not fetched again**: its
+saved data is scored straight away (`SCORED` in the output), so an interrupted
+batch continues where it stopped, and re-running a batch after the scoring
+changed re-scores every tool in seconds. Results are always rewritten; data
+files are never overwritten. Add `--fill-missing` to fetch the sources missing
+from saved data instead (e.g. after a source was down): the saved sources are
+kept and the data file is updated. Failed evaluations leave no new files to be
+mistaken for a completed run. Use a separate output directory for each CSV.
+Each tool's log is written to `results/batch/logs/`, named like its data file;
+the terminal shows one line per tool as it starts and finishes, and a summary
+of the tools fetched and scored from saved data.
 
 Several tools are evaluated at once (`--jobs`, or `MATURITY_METER_BATCH_JOBS`;
 4 by default), so the quick,
@@ -343,15 +350,22 @@ maturity-meter batch "results/bio.tools entries - github_gitlab_tools_with_publi
   --output-dir results/batch
 ```
 
-Add `--dry-run` to list and validate entries without running evaluations or
-creating output. Ingested data is saved in `results/batch/raw/`, with CSV row
-numbers and bio.tools IDs in the filenames, as soon as each tool is done. No
-score files are saved. Existing data files are skipped and never overwritten,
-so an interrupted batch continues where it stopped when run again; failed
-evaluations do not leave a data file to be mistaken for a completed run. Use a
-separate output directory for each CSV. Each tool's log is written to
-`results/batch/logs/`, named like its data file; the terminal shows one line
-per tool as it starts and finishes.
+Add `--dry-run` to list and validate entries, and what would be done for
+each (fetch, or score saved data), without evaluating or creating output.
+Each tool's ingested data is saved in `results/batch/raw/` as soon as it is
+fetched, and its scored result (as `evaluate` prints it) in
+`results/batch/results/`, both with the CSV row number and bio.tools ID in the
+filename. A tool that already has a data file is **not fetched again**: its
+saved data is scored straight away (`SCORED` in the output), so an interrupted
+batch continues where it stopped, and re-running a batch after the scoring
+changed re-scores every tool in seconds. Results are always rewritten; data
+files are never overwritten. Add `--fill-missing` to fetch the sources missing
+from saved data instead (e.g. after a source was down): the saved sources are
+kept and the data file is updated. Failed evaluations leave no new files to be
+mistaken for a completed run. Use a separate output directory for each CSV.
+Each tool's log is written to `results/batch/logs/`, named like its data file;
+the terminal shows one line per tool as it starts and finishes, and a summary
+of the tools fetched and scored from saved data.
 
 Several tools are evaluated at once (`--jobs`, or `MATURITY_METER_BATCH_JOBS`;
 4 by default), so the quick,
