@@ -404,7 +404,17 @@ poetry run maturity-meter-serve
 {"repository": "https://github.com/owner/repo", "dois": [], "biotools_id": null}
 ```
 
-Only `repository` is required.
+Only `repository` is required. Each dimension reports its score (`value`),
+its `coverage` (the share of its metrics that could be assessed, 0 to 1) and
+its metrics.
+
+`POST /evaluate/mosaic` takes the same body and returns the result as a radial
+mosaic SVG: one leaf per dimension (or per metric with `?per=metric`), whose
+length is the score and whose opacity is the coverage. It is drawn by
+[viz-mosaic](https://github.com/thatmariia/viz-mosaic) and needs Node.js 20+
+and the renderer in `viz/` (run `npm install --prefix viz` once; the container
+image includes both). `MATURITY_METER_VIZ_DIR` points to the renderer when it
+lives elsewhere.
 
 ## Library
 

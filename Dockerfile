@@ -16,6 +16,15 @@ COPY pyproject.toml README.md ./
 COPY src ./src
 RUN python -m pip wheel --wheel-dir /wheels ".[api]"
 
+# Install the radial mosaic renderer (viz-mosaic, a Node package on GitHub).
+FROM node:22-slim AS viz
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /viz
+COPY viz/package.json viz/package-lock.json viz/radial.mjs ./
+RUN npm ci --ignore-scripts --omit=dev
+
 FROM python:3.12-slim AS runtime
 
 LABEL org.opencontainers.image.title="Maturity meter" \
@@ -41,6 +50,11 @@ COPY --from=builder /wheels /wheels
 # The builder stage collected every dependency as a wheel, so nothing needs
 # resolving here (and pip would not match the resqui wheel to its git URL).
 RUN python -m pip install --no-cache-dir --no-deps /wheels/*.whl && rm -rf /wheels
+
+# Node and the installed renderer draw the radial mosaic (POST /evaluate/mosaic).
+COPY --from=viz /usr/local/bin/node /usr/local/bin/node
+COPY --from=viz /viz /app/viz
+ENV MATURITY_METER_VIZ_DIR=/app/viz
 
 USER appuser
 EXPOSE 8000

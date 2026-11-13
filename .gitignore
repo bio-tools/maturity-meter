@@ -26,3 +26,4 @@ site/
 docs/build/
 docs/lineage/
 results/
+node_modules/

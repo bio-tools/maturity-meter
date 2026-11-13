@@ -8,7 +8,8 @@ stores both as pandas DataFrames and produces:
   3. The same two plots for each indicator category
   4. Spearman correlation matrices of the measured values: all indicators,
      within each category, and across categories (see correlations())
-  5. Plots 1-2 for each metric source, plus a per-source overview (see source_coverage())
+  5. Plots 1-2 for each metric source, plus a per-source overview
+     (see source_coverage())
 
 A metric is "covered" for a tool when the cell has a value (empty = not covered).
 Note: a measured value of `false` or 0 counts as covered.
@@ -17,6 +18,7 @@ Usage:
     python metric_coverage.py "pre_run 1.ods" [output_dir]
 Requires: pandas, matplotlib, odfpy  (pip install pandas matplotlib odfpy)
 """
+
 import json
 import re
 import sys
@@ -35,7 +37,9 @@ def load(path):
     tools = tools.set_index(tools.columns[0])
     tools.index.name = "Tool"
     # Strip whitespace-only strings so they count as missing
-    tools = tools.apply(lambda c: c.map(lambda v: np.nan if isinstance(v, str) and not v.strip() else v))
+    tools = tools.apply(
+        lambda c: c.map(lambda v: np.nan if isinstance(v, str) and not v.strip() else v)
+    )
     return metrics, tools
 
 
@@ -43,7 +47,9 @@ def category_map(metrics):
     """category -> list of metrics. Metrics with several categories
     (e.g. 'Compatibility, Security, Sustainability') are counted in each."""
     out = {}
-    for metric, cats in zip(metrics["Metric"], metrics["Indicator category"]):
+    for metric, cats in zip(
+        metrics["Metric"], metrics["Indicator category"], strict=True
+    ):
         if pd.isna(cats):
             continue
         for cat in str(cats).split(","):
@@ -67,7 +73,7 @@ def plot_tool_coverage(covered, title, ax):
     pct = covered.mean(axis=1).mul(100)
     bins = np.arange(0, 100 + BIN_WIDTH, BIN_WIDTH)
     counts, _ = np.histogram(pct, bins=bins)
-    labels = [f"{lo}-{hi}%" for lo, hi in zip(bins[:-1], bins[1:])]
+    labels = [f"{lo}-{hi}%" for lo, hi in zip(bins[:-1], bins[1:], strict=True)]
     bars = ax.bar(labels, counts, color="#DD8452")
     ax.bar_label(bars, fontsize=8)
     ax.set_xlabel("% of indicators covered")
@@ -83,13 +89,17 @@ def make_plots(covered, name, out_dir):
     n = covered.shape[1]
 
     fig, ax = plt.subplots(figsize=(9, max(3, 0.18 * n + 1.5)))
-    metric_pct = plot_metric_coverage(covered, f"{name}: % of tools covered by each metric ({n} metrics)", ax)
+    metric_pct = plot_metric_coverage(
+        covered, f"{name}: % of tools covered by each metric ({n} metrics)", ax
+    )
     fig.tight_layout()
     fig.savefig(out_dir / f"{slug}_metric_coverage.png", dpi=150)
     plt.close(fig)
 
     fig, ax = plt.subplots(figsize=(8, 5))
-    tool_pct = plot_tool_coverage(covered, f"{name}: indicator coverage per tool ({len(covered)} tools)", ax)
+    tool_pct = plot_tool_coverage(
+        covered, f"{name}: indicator coverage per tool ({len(covered)} tools)", ax
+    )
     fig.tight_layout()
     fig.savefig(out_dir / f"{slug}_tool_coverage.png", dpi=150)
     plt.close(fig)
@@ -131,7 +141,11 @@ def _to_number(v, metric):
         if "Associated publications and open access" in metric:
             return np.nan
         try:
-            vals = [_to_number(e.get("value"), metric) for e in json.loads(s) if isinstance(e, dict)]
+            vals = [
+                _to_number(e.get("value"), metric)
+                for e in json.loads(s)
+                if isinstance(e, dict)
+            ]
         except (ValueError, AttributeError):
             return np.nan
         vals = [x for x in vals if not np.isnan(x)]
@@ -147,22 +161,32 @@ def _to_number(v, metric):
 def to_numeric(tools):
     """tools x metrics DataFrame of floats; drops indicators that are unusable
     for correlation (fewer than MIN_PAIRS values, or the same value for every tool)."""
-    num = pd.DataFrame({c: tools[c].map(lambda v: _to_number(v, c)) for c in tools.columns})
+    num = pd.DataFrame(
+        {c: tools[c].map(lambda v, c=c: _to_number(v, c)) for c in tools.columns}
+    )
     n_values, n_unique = num.notna().sum(), num.nunique()
     reason = pd.Series("", index=num.columns)
     reason[n_values == 0] = "no numeric values (text, URLs, dates)"
     reason[(n_values > 0) & (n_unique <= 1)] = "same value for every tool"
-    reason[(n_unique > 1) & (n_values < MIN_PAIRS)] = f"fewer than {MIN_PAIRS} tools measured"
+    reason[(n_unique > 1) & (n_values < MIN_PAIRS)] = (
+        f"fewer than {MIN_PAIRS} tools measured"
+    )
     dropped = reason[reason != ""].sort_index()
     return num.loc[:, reason == ""], dropped
 
 
 def category_scores(num, cats):
     """Per-tool score for each category: mean percentile rank (0-1) of the tool
-    over the category's indicators (ranks make indicators on different scales comparable)."""
+    over the category's indicators (ranks make indicators on different scales
+    comparable)."""
     ranks = num.rank(pct=True)
-    return pd.DataFrame({cat: ranks[[c for c in cols if c in ranks]].mean(axis=1)
-                         for cat, cols in cats.items() if any(c in ranks for c in cols)})
+    return pd.DataFrame(
+        {
+            cat: ranks[[c for c in cols if c in ranks]].mean(axis=1)
+            for cat, cols in cats.items()
+            if any(c in ranks for c in cols)
+        }
+    )
 
 
 def plot_corr(corr, title, path):
@@ -178,8 +202,15 @@ def plot_corr(corr, title, path):
             for j in range(n):
                 val = corr.iat[i, j]
                 if not np.isnan(val):
-                    ax.text(j, i, f"{val:.2f}", ha="center", va="center", fontsize=7,
-                            color="white" if abs(val) > 0.6 else "black")
+                    ax.text(
+                        j,
+                        i,
+                        f"{val:.2f}",
+                        ha="center",
+                        va="center",
+                        fontsize=7,
+                        color="white" if abs(val) > 0.6 else "black",
+                    )
     fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04, label="Spearman ρ")
     ax.set_title(title)
     fig.tight_layout()
@@ -197,7 +228,11 @@ def correlations(metrics, tools, out_dir):
     # 1. All indicators
     corr = num.corr(**corr_kw)
     corr.round(3).to_csv(out_dir / "all_indicators_corr.csv")
-    plot_corr(corr, f"All indicators ({num.shape[1]} usable)", out_dir / "all_indicators_corr.png")
+    plot_corr(
+        corr,
+        f"All indicators ({num.shape[1]} usable)",
+        out_dir / "all_indicators_corr.png",
+    )
 
     # 2. Within each category
     for cat, cols in cats.items():
@@ -215,10 +250,19 @@ def correlations(metrics, tools, out_dir):
     scores.round(3).to_csv(out_dir / "category_scores.csv")
     c = scores.corr(**corr_kw)
     c.round(3).to_csv(out_dir / "across_categories_corr.csv")
-    plot_corr(c, "Across categories (mean percentile rank per tool)", out_dir / "across_categories_corr.png")
+    plot_corr(
+        c,
+        "Across categories (mean percentile rank per tool)",
+        out_dir / "across_categories_corr.png",
+    )
 
-    dropped.rename_axis("indicator").rename("reason").to_csv(out_dir / "dropped_indicators.csv")
-    print(f"Correlations: {num.shape[1]} usable indicators, {len(dropped)} dropped. Saved to {out_dir.resolve()}")
+    dropped.rename_axis("indicator").rename("reason").to_csv(
+        out_dir / "dropped_indicators.csv"
+    )
+    print(
+        f"Correlations: {num.shape[1]} usable indicators, {len(dropped)} dropped. "
+        f"Saved to {out_dir.resolve()}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -237,21 +281,42 @@ def source_coverage(metrics, covered, out_dir):
     summary_tool.round(1).to_csv(out_dir / "tool_coverage_by_source.csv")
 
     # Overview: one bar per source
-    overview = pd.DataFrame({
-        src: {
-            "metrics": len(cols),
-            "% tools with >=1 metric": covered[cols].any(axis=1).mean() * 100,
-            "mean % of source metrics covered": covered[cols].mean(axis=1).mean() * 100,
+    overview = pd.DataFrame(
+        {
+            src: {
+                "metrics": len(cols),
+                "% tools with >=1 metric": covered[cols].any(axis=1).mean() * 100,
+                "mean % of source metrics covered": covered[cols].mean(axis=1).mean()
+                * 100,
+            }
+            for src, cols in sources.items()
         }
-        for src, cols in sources.items()
-    }).T.sort_values("% tools with >=1 metric")
+    ).T.sort_values("% tools with >=1 metric")
     overview.round(1).to_csv(out_dir / "source_overview.csv")
 
     fig, ax = plt.subplots(figsize=(9, 0.35 * len(overview) + 1.5))
     y = np.arange(len(overview))
-    ax.barh(y + 0.2, overview["% tools with >=1 metric"], 0.4, label="% of tools with at least 1 metric", color="#4C72B0")
-    ax.barh(y - 0.2, overview["mean % of source metrics covered"], 0.4, label="mean % of the source's metrics covered", color="#DD8452")
-    ax.set_yticks(y, [f"{s} ({int(n)})" for s, n in zip(overview.index, overview["metrics"])])
+    ax.barh(
+        y + 0.2,
+        overview["% tools with >=1 metric"],
+        0.4,
+        label="% of tools with at least 1 metric",
+        color="#4C72B0",
+    )
+    ax.barh(
+        y - 0.2,
+        overview["mean % of source metrics covered"],
+        0.4,
+        label="mean % of the source's metrics covered",
+        color="#DD8452",
+    )
+    ax.set_yticks(
+        y,
+        [
+            f"{s} ({int(n)})"
+            for s, n in zip(overview.index, overview["metrics"], strict=True)
+        ],
+    )
     ax.set_xlim(0, 100)
     ax.set_xlabel("% of tools")
     ax.set_title("Coverage per metric source (number of metrics in brackets)")
@@ -286,7 +351,10 @@ def main():
     summary_tool.round(1).to_csv(out_dir / "tool_coverage.csv")
 
     source_coverage(metrics, covered, out_dir)
-    print(f"{len(tools)} tools, {tools.shape[1]} metrics. Plots and CSVs saved to {out_dir.resolve()}")
+    print(
+        f"{len(tools)} tools, {tools.shape[1]} metrics. "
+        f"Plots and CSVs saved to {out_dir.resolve()}"
+    )
 
 
 if __name__ == "__main__":

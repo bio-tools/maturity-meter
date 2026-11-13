@@ -1,0 +1,10 @@
+{
+  "name": "maturity-meter-viz",
+  "private": true,
+  "type": "module",
+  "description": "Renders maturity-meter figures with viz-mosaic.",
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "viz-mosaic": "github:thatmariia/viz-mosaic#c7ae2ffdc846f69fb5880bfe079a8f3238c8fef3"
+  }
+}
