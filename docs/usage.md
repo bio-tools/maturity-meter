@@ -91,11 +91,102 @@ python scripts/metrics_report.py tool-a.json tool-b.json -o metrics.ods
 ```
 
 The spreadsheet contains a metric-details sheet (metric name, source, identifier,
-expected range and short description), and a comparison sheet with tools as rows
-and source-qualified metric names as columns. A blank cell means that the input did not report a value; a
-blank range means it is not specified. Values are copied without calculating
-new metrics. Numeric and Boolean values remain typed spreadsheet cells; text
+expected range, short description and category), and a comparison sheet with tools as rows
+and source-qualified metric names as columns. A blank cell means that the value
+is unavailable; a blank range means it is not specified. Most values are copied
+from sources; the Compatibility presence indicators described below are derived.
+Numeric and Boolean values remain typed spreadsheet cells; text
 values remain text. The comparison sheet may require horizontal scrolling.
+
+Compatibility indicators are Boolean evidence from specific sources, not proof
+that a format, package or distribution is absent everywhere:
+
+- bio.tools input and output formats are present when any function lists a
+  format with a non-empty term or URI. An empty function list or no listed
+  formats gives false; a missing entry or missing function list gives blank.
+- Repository file types are separate columns for containers (Dockerfile or
+  Containerfile prefix), Conda recipes (`meta.yaml`), and Python packaging
+  files (`pyproject.toml`, `setup.py`, or `setup.cfg`). Paths and names are
+  matched case-insensitively. These files are evidence only, not confirmation
+  of a published or installable package. If the file list is truncated, found
+  types are true and other types are blank; a missing file list gives blanks.
+- Debian Med, Bioconda, BioContainers and Galaxy are separate columns based on
+  matching RSEc metadata filenames. False means not listed in the available
+  RSEc file list, not absent from the platform; missing RSEc data gives blanks.
+
+Fairness measurements are named with the retained indicator from
+`results/Indicators.xlsx`, followed by the specific measurement. Different
+sources and subtests remain separate columns: no values are combined or
+reconciled. A measurement can appear in both Fairness and another applicable
+category. Previously Fairness-tagged measurements outside the retained
+indicators, including per-file licensing, are labeled `Other` rather than
+deleted, unless retained in another category. The containerization check is
+classified as Sustainability; Compatibility file-type indicators remain in
+Compatibility.
+
+The reports also derive explicitly labeled presence evidence from saved data:
+repository license, citation, attribution, CodeMeta, documentation, dependency,
+test, linter, contribution and governance files; repository visibility, issue
+tracker setting and release assets; bio.tools registry, metadata, publications,
+credits, documentation, installation links, downloads, topics and operations;
+and an available RSEc entry. These indicate only what the named source contains.
+For example, a test file does not establish that tests pass, and a dependency
+manifest does not prove installation instructions exist. A missing source is
+blank; a truncated file listing can establish presence but not absence.
+Only release assets actually included in a release record are assessed.
+The measurements do not implement every verification described in the
+spreadsheet; in particular, they do not prove governance quality, identifier
+persistence, file-level licensing coverage, successful installation or
+complete archive contents.
+
+The six retained Maintainability indicators use their spreadsheet names. Other
+previously Maintainability-tagged measurements are labeled `Other` unless they
+belong to another retained category. Shared checks retain both categories.
+Duplicate-code rate remains a percentage (0–100), as reported by Lizard.
+The SuperLinter "No linting issues" column is always present but blank when
+not assessed. The PDF lists it as excluded when no results exist, and coverage
+plots show zero coverage rather than a failure. The report does not enable
+SuperLinter; existing JSON cannot supply a lint result unless it was collected.
+
+Scientific Impact contains repository stars and forks, publication FWCI, and
+publication citation counts, including annual citation counts where available.
+Source-specific publication values remain separate. Publication reference
+counts are categorized as `Other`: references made by a publication are not
+citations received by it.
+
+Security includes the retained and "maybe" indicators with available evidence.
+Repository file lists provide separate Boolean presence checks for `SECURITY.md`
+and `.gitignore` (case-insensitive basenames at any path). A missing or
+truncated list cannot establish absence; a found file does not establish a
+valid or effective policy. The dependency-update Scorecard check is in Security,
+and security static analysis also remains in Fairness.
+Gitleaks results are shown if present; they are not inferred from other checks,
+and this report does not enable Gitleaks.
+
+Sustainability includes the five retained indicators and the container-build
+and published-package checks. Mean issue closure time is calculated in days
+from saved closed-issue creation and closure timestamps; the list is a
+capped sample, and no closed issues means no average. The OpenEBench
+resolution-time observation remains separate, with no assumption that its
+aggregation or sample matches the repository-derived average. Contributor diversity
+is the inverse Simpson index, `1 / sum((commits / total_commits)^2)`, from
+saved contributors with positive counts; names ending in `[bot]` or ` bot`,
+or equal to `bot`, are excluded. This heuristic may miss bots; contributor
+lists can be capped, and no qualifying contributors means an unknown index.
+GitHub last push and GitLab last project activity are distinct indicators,
+not necessarily the last commit. Their age in days is calculated relative to
+one UTC report reference, recorded in the metric description and PDF.
+Use the same explicit ISO timestamp for reproducible paired reports:
+
+```bash
+python scripts/metrics_report.py tool-a.json -o metrics.ods --as-of 2026-11-12T16:00:00Z
+python scripts/metrics_stats.py tool-a.json -o statistics.pdf --as-of 2026-11-12T16:00:00Z
+```
+
+Without `--as-of`, each command captures its own current reference time.
+The discarded dependency-management indicator remains in Security, not
+Sustainability; source-specific Fairness and Compatibility indicators remain
+in their respective categories.
 
 The report includes Lizard code metrics, resqui check outputs, GitHub/GitLab
 stars, forks, open-issue and branch-protection fields, the scalar measurements
@@ -150,8 +241,19 @@ tool. Different bio.tools entries can share a repository and are counted
 separately. The PDF has a distribution for each scalar metric,
 including categorical values, and lists excluded metrics. Numeric histograms
 count tools; boolean and categorical values are shown as frequency bars.
-Grouped publication values and multiple checks in one cell are excluded from
-both distributions and comparisons, as are mixed-type and non-finite metrics.
+It starts with a paginated summary table listing every source-qualified metric,
+its categories, tool coverage and a concise value summary. Numeric values show
+the median and range, Booleans show true/false counts, and categorical values
+show the number of distinct values and the mode. Excluded and unavailable
+metrics are listed with their reason rather than presented as zero.
+Truncated categorical modes are marked with `[...]`; positional metrics are
+identified as excluded from comparisons.
+Grouped Europe PMC open-access values are charted per publication observation
+(not per tool) and excluded from comparisons. Other grouped publication values
+and multiple checks in one cell are excluded from both distributions and
+comparisons, as are mixed-type and non-finite metrics.
+The coverage plot script counts grouped open-access cells as covered, but
+excludes them from its numeric correlations rather than averaging publications.
 Missing values are not counted as zero.
 
 The comparison sections show up to 20 numeric pairs ranked by signed Pearson
@@ -265,10 +367,11 @@ python scripts/metrics_report.py tool-a.json tool-b.json -o metrics.ods
 ```
 
 The spreadsheet contains a metric-details sheet (metric name, source, identifier,
-expected range and short description), and a comparison sheet with tools as rows
-and source-qualified metric names as columns. A blank cell means that the input did not report a value; a
-blank range means it is not specified. Values are copied without calculating
-new metrics. Numeric and Boolean values remain typed spreadsheet cells; text
+expected range, short description and category), and a comparison sheet with tools as rows
+and source-qualified metric names as columns. A blank cell means that the value
+is unavailable; a blank range means it is not specified. Most values are copied
+from sources; the Compatibility presence indicators described above are derived.
+Numeric and Boolean values remain typed spreadsheet cells; text
 values remain text. The comparison sheet may require horizontal scrolling.
 
 The report includes Lizard code metrics, resqui check outputs, GitHub/GitLab
