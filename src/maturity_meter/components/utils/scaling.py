@@ -2,13 +2,16 @@
 
 All scores are in [0, 1]. The scaling functions map one source's raw value
 onto [0, 1] before any reconciliation; each documents the reasoning and the
-reference it is anchored on. Reconciliation, aspect combination and dimension
-aggregation are still placeholders until they are decided.
+reference it is anchored on. Reconciliation combines several sources'
+answers to one question, by one of three rules (evidence, any, priority).
+Aspect combination and dimension aggregation are still placeholders until they
+are decided.
 """
 
 import math
 from statistics import mean
 
+from maturity_meter.components.utils.reliability import Evidence, vote_weight
 from maturity_meter.components.utils.roles import role
 from maturity_meter.models import MetricResult
 
@@ -163,24 +166,85 @@ def linear_band_scale(value: float, best: float, worst: float) -> float:
 
 
 @role("reconciliation")
-def placeholder_reconcile(values: list[float | None]) -> float | None:
-    """Placeholder reconciliation of one quantity reported by several sources.
+def reconcile_evidence(evidence: list[Evidence]) -> float | None:
+    """Probability that a yes/no answer is yes, from several sources' evidence.
 
-    Used when different sources measure the same thing (e.g. the citation
-    count of one publication in OpenAlex and in Europe PMC).
+    Accuracy-weighted voting: every source with an answer votes with the weight
+    of its kind (``ln(A / (1 - A))``, see
+    :mod:`~maturity_meter.components.utils.reliability`), for yes or against;
+    a graded answer (e.g. 0.5) votes in proportion (``2 * value - 1``). The
+    summed votes are the log-odds of yes, starting from even odds. One
+    repository observation outweighs several weak heuristics; agreeing sources
+    strengthen each other; equally trusted sources that disagree give 0.5.
+    A single answer is returned as it is, since accuracy only weighs sources
+    against each other.
+
+    Used when the sources examine the same thing (e.g. whether a licence is
+    declared), so a "no" from a trusted source is real evidence against.
 
     Parameters
     ----------
-    values : list[float | None]
-        The values from each source; None where a source has no value.
+    evidence : list[Evidence]
+        Each source's answer and kind; answers of None are left out.
 
     Returns
     -------
     float | None
-        The mean of the available values, or None if no source has one.
+        Probability in [0, 1], or None if no source has an answer.
+    """
+    answered = [(e.kind, e.value) for e in evidence if e.value is not None]
+    if not answered:
+        return None
+    if len(answered) == 1:
+        # Nothing to weigh it against: the answer is used as it is.
+        return answered[0][1]
+    votes = sum(vote_weight(kind) * (2.0 * value - 1.0) for kind, value in answered)
+    return 1.0 / (1.0 + math.exp(-votes))
+
+
+@role("reconciliation")
+def reconcile_any(values: list[float | None]) -> float | None:
+    """The best answer of several sources: any one of them suffices.
+
+    Used when the sources look in different places or at alternatives (e.g.
+    Bioconda, Debian or PyPI for "published package"; a CITATION file or a
+    README section for "how to cite"), so one source's "no" says nothing
+    about the others, and for citation counts, which databases undercount by
+    different amounts (e.g. Martin-Martin et al. 2018).
+
+    Parameters
+    ----------
+    values : list[float | None]
+        Each source's answer or score; None where a source has none.
+
+    Returns
+    -------
+    float | None
+        The highest available value, or None if no source has one.
     """
     available = [v for v in values if v is not None]
-    return mean(available) if available else None
+    return max(available) if available else None
+
+
+@role("reconciliation")
+def reconcile_priority(values: list[float | None]) -> float | None:
+    """The first available answer, in order of preference.
+
+    Used when one source measures directly and another reports a second-hand
+    figure of unknown method (e.g. issue close times computed from the
+    repository's issues, then OpenEBench's figure).
+
+    Parameters
+    ----------
+    values : list[float | None]
+        Answers from the most to the least preferred source.
+
+    Returns
+    -------
+    float | None
+        The first value that is not None, or None.
+    """
+    return next((v for v in values if v is not None), None)
 
 
 @role("reconciliation")
@@ -189,8 +253,8 @@ def placeholder_combine(values: list[float | None]) -> float | None:
 
     Used when a metric covers several distinct questions (aspects) about one
     concept, e.g. licensing: is a licence declared, is it open source, is it
-    machine-readable. Unlike :func:`placeholder_reconcile`, the values are
-    different quantities, not one quantity from several sources.
+    machine-readable. Unlike the reconciliation functions, the values are
+    answers to different questions, not one question from several sources.
 
     Parameters
     ----------

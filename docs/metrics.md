@@ -13,14 +13,14 @@ carry one. Each aspect is answered by every source that can:
 
 - each source's raw value is first **scaled** onto [0, 1] (see
   [Scaling](#scaling) below; yes/no answers are already 0 or 1);
-- the sources answering one aspect are **reconciled** with
-  `placeholder_reconcile`;
+- the sources answering one aspect are **reconciled** by one of three rules
+  (see [Reconciliation](#reconciliation) below);
 - the aspects are **combined** into the metric with `placeholder_combine`;
 - the metrics are **aggregated** into the dimension with
   `placeholder_dimension_score`.
 
-Reconciliation, combination and aggregation are placeholders (currently
-means), to be replaced once they are decided; the scaling is final. A source without an answer, or an aspect no source could answer,
+Combination and aggregation are placeholders (currently means), to be
+replaced once they are decided; the scaling and reconciliation are final. A source without an answer, or an aspect no source could answer,
 is left out rather than counted as a "no". Metrics with a single aspect simply
 reconcile their sources. Each metric's note lists every aspect's answer and
 every source's answer to it, so disagreements are visible; its suggestions are
@@ -129,6 +129,59 @@ reference points (e.g. at roughly the top 5-10%).
 | Duplicated code (%) | 1 up to 3%, 0 at 100%, linear | SonarQube's recommended quality gate ("Sonar way") allows at most [3% duplicated lines](https://docs.sonarsource.com/sonarqube-server/2025.3/quality-standards-administration/managing-quality-gates/introduction-to-quality-gates). |
 | Share of EDAM leaf formats | used as is | Already a share in [0, 1]. |
 | FAIR-Checker scores | NO 0, WEAK 0.5, STRONG 1 | FAIR-Checker's own three levels. |
+
+## Reconciliation
+
+Each question (aspect) reconciles its sources with one of three rules, chosen
+by what the sources do:
+
+| Rule | When | How |
+|---|---|---|
+| **any** | The sources look in different places or at alternatives, e.g. Bioconda, Debian or PyPI for "published package", or a CITATION file or README section for "how to cite". One source's "no" says nothing about the others. | The highest answer: one source suffices. |
+| **evidence** | The sources examine the same thing, e.g. the repository's licence file, or its tests. A trusted source's "no" is real evidence against. | Accuracy-weighted voting (below). |
+| **priority** | One source measures directly, another reports a second-hand figure, e.g. issue close times from the repository's issues and from OpenEBench. | The first available, in order of preference. |
+
+Citation counts from several databases also use **any**: every database
+undercounts by a different amount ([Martín-Martín et al. 2018](https://arxiv.org/abs/1808.05053)),
+so the highest count is the most complete. Within an **any** question, several
+sources examining the same place are first weighed as **evidence** and then
+count as one place, e.g. for "licence declared" the repository (GitHub
+licence, LICENSE file, RSFC, OEBFAIR) next to bio.tools and OpenEBench.
+
+### Accuracy-weighted voting
+
+For the **evidence** rule, each source votes yes or no with the weight
+`ln(A / (1 - A))`, where `A` is the accuracy of its kind of source; a graded
+answer (e.g. FAIR-Checker's WEAK) votes in proportion. The votes are summed as
+log-odds and turned back into a probability: one repository observation
+outweighs several weak heuristics, agreeing sources strengthen each other, and
+equally trusted sources that disagree give 0.5. A single answer is used as it
+is. This is the vote count of the ACCU data-fusion model for two values
+([Dong, Berti-Equille & Srivastava 2009](https://lunadong.com/publication/dependence_vldb.pdf);
+[survey](https://arxiv.org/abs/1503.00310)), equivalent to a logarithmic
+opinion pool ([de Carvalho et al. 2023](https://arxiv.org/abs/1502.04206)).
+
+The accuracies are defined centrally, per kind of source, in
+`components/utils/reliability.py`. No published accuracies exist for most of
+these sources (OpenSSF Scorecard and SOMEF/RSFC describe their checks as
+heuristics with false positives and negatives), so they are informed
+judgements of how directly each kind observes the software, not fitted to any
+data:
+
+| Kind of source | Accuracy | Vote weight | Sources | Why |
+|---|---|---|---|---|
+| repository | 0.95 | 2.94 | GitHub/GitLab record, repository files | Observes the software itself; errors only from unusual file names or a truncated file list. |
+| registry | 0.85 | 1.73 | bio.tools, RSEc, Europe PMC, OpenAlex | Curated, but self-reported and not always updated after releases ([bio.tools curators guide](https://biotools.readthedocs.io/en/latest/curators_guide.html)). |
+| assessment tool | 0.80 | 1.39 | resqui plugins (RSFC, OEBFAIR, OpenSSF Scorecard, HowFairIs, SuperLinter, Gitleaks) | Heuristic checks with known false positives and negatives. |
+| aggregator | 0.75 | 1.10 | OpenEBench | Derived second-hand from other registries, possibly stale. |
+| web metadata | 0.70 | 0.85 | FAIR-Checker | Describes the hosting page's markup more than the software. |
+| README text | 0.65 | 0.62 | keyword patterns in the README | A keyword cannot tell context (e.g. "cite" in passing). |
+
+The questions using the **evidence** rule: licence declared (within the
+repository and within OpenEBench), open-source licence, per-file licensing,
+public repository, tests, releases, version numbers, contribution guidelines,
+CI configured, dependency management, and each publication's open-access
+status. All others use **any**, except issue close time (**priority**).
 
 ## Ingested items that are not used
 

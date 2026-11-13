@@ -2,10 +2,12 @@
 
 from maturity_meter.components.utils.checks import (
     Aspect,
+    Pool,
     aspect_metric,
     resqui_verdict,
     verdict_metric,
 )
+from maturity_meter.components.utils.reliability import assessment_tool, repository
 from maturity_meter.components.utils.sources import (
     biotools_has,
     fair_checker_score,
@@ -22,8 +24,8 @@ from maturity_meter.models import IngestedData, MetricResult
 def registry_listing(data: IngestedData) -> MetricResult:
     """Whether the software is listed in research software registries.
 
-    Sources: the bio.tools, OpenEBench and RSEc entries looked up by bio.tools
-    ID, and a registry badge in the README.
+    Sources (any one suffices): the bio.tools, OpenEBench and RSEc entries
+    looked up by bio.tools ID, and a registry badge in the README.
 
     OEBFAIR's ``listed_in_registry`` check is not used: it reported "not
     listed" for every tool, including tools listed in bio.tools.
@@ -48,6 +50,7 @@ def registry_listing(data: IngestedData) -> MetricResult:
                 data, r"bio\.tools/|research-software-directory|rsd\.|biocontainers"
             ),
         },
+        rule="any",
         suggestion="Register the software in bio.tools.",
         missing="No bio.tools ID or README to check.",
     )
@@ -56,9 +59,10 @@ def registry_listing(data: IngestedData) -> MetricResult:
 def persistent_identifier(data: IngestedData) -> MetricResult:
     """Whether the software has a persistent, unique identifier.
 
-    Sources: a software DOI or SWHID in the README, the bio.tools ID, the
-    RSFC and OEBFAIR ``persistent_and_unique_identifier`` checks, and
-    FAIR-Checker's persistent-identifier test (F1B) on the repository page.
+    Sources (any one suffices): a software DOI or SWHID in the README, the
+    bio.tools ID, the RSFC and OEBFAIR ``persistent_and_unique_identifier``
+    checks, and FAIR-Checker's persistent-identifier test (F1B) on the
+    repository page.
 
     Parameters
     ----------
@@ -80,6 +84,7 @@ def persistent_identifier(data: IngestedData) -> MetricResult:
             "RSFC/OEBFAIR": resqui_verdict(data, "persistent_and_unique_identifier"),
             "FAIR-Checker F1B": fair_checker_score(data, "F1B"),
         },
+        rule="any",
         suggestion="Archive releases on Zenodo to get a DOI.",
     )
 
@@ -89,11 +94,12 @@ def machine_readable_metadata(data: IngestedData) -> MetricResult:
 
     Aspects and their sources:
 
-    - structured metadata: a ``codemeta.json`` or ``CITATION.cff`` file, a
-      bio.tools entry, RSFC's ``codemeta_completeness`` check, and
+    - structured metadata (any): a ``codemeta.json`` (weighed as evidence
+      with RSFC's ``codemeta_completeness`` check) or ``CITATION.cff`` file, a
+      bio.tools entry, and
       FAIR-Checker's structured-metadata (F2A), machine-readable-format (I1),
       external-links (I3) and provenance (R1.2) tests on the repository page;
-    - community vocabularies: EDAM topics and operations in bio.tools,
+    - community vocabularies (any): EDAM topics and operations in bio.tools,
       OpenEBench's Bioschemas check, and FAIR-Checker's shared-vocabulary
       (F2B), shared-ontology (I2) and community-standard (R1.3) tests.
 
@@ -121,16 +127,22 @@ def machine_readable_metadata(data: IngestedData) -> MetricResult:
         {
             "structured metadata": Aspect(
                 {
-                    "codemeta.json": has_file(
-                        data, lambda f: file_name(f) == "codemeta.json"
+                    "codemeta.json": Pool(
+                        {
+                            "file": repository(
+                                has_file(
+                                    data, lambda f: file_name(f) == "codemeta.json"
+                                )
+                            ),
+                            "RSFC completeness": assessment_tool(
+                                resqui_verdict(data, "codemeta_completeness")
+                            ),
+                        }
                     ),
                     "CITATION.cff": has_file(
                         data, lambda f: file_name(f) == "citation.cff"
                     ),
                     "bio.tools entry": registry_lookup(data, data.biotools),
-                    "RSFC CodeMeta completeness": resqui_verdict(
-                        data, "codemeta_completeness"
-                    ),
                     "FAIR-Checker F2A": fair_checker_score(data, "F2A"),
                     "FAIR-Checker I1": fair_checker_score(data, "I1"),
                     "FAIR-Checker I3": fair_checker_score(data, "I3"),

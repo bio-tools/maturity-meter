@@ -2,11 +2,19 @@
 
 from maturity_meter.components.utils.checks import (
     Aspect,
+    Pool,
     aspect_metric,
     resqui_verdict,
 )
+from maturity_meter.components.utils.reliability import (
+    Evidence,
+    assessment_tool,
+    registry,
+    repository,
+)
 from maturity_meter.components.utils.scaling import (
-    placeholder_reconcile,
+    placeholder_combine,
+    reconcile_evidence,
 )
 from maturity_meter.components.utils.sources import (
     biotools_has,
@@ -25,11 +33,11 @@ def citation_and_credit(data: IngestedData) -> MetricResult:
 
     Aspects and their sources:
 
-    - how to cite: a CITATION file (e.g. ``CITATION.cff``), RSFC's
-      ``software_has_citation`` check, OpenEBench's citation check and a
-      citation section in the README;
-    - credits: an AUTHORS/CONTRIBUTORS/CREDITS file, and the credits in the
-      bio.tools and OpenEBench entries.
+    - how to cite (any place): a CITATION file (e.g. ``CITATION.cff``,
+      weighed as evidence with RSFC's ``software_has_citation`` check),
+      OpenEBench's citation check, or a citation section in the README;
+    - credits (any place): an AUTHORS/CONTRIBUTORS/CREDITS file, or the
+      credits in the bio.tools or OpenEBench entries.
 
     OpenEBench's website copyright check is not used: it inspects the
     homepage, which for most tools is the GitHub/GitLab page.
@@ -49,10 +57,18 @@ def citation_and_credit(data: IngestedData) -> MetricResult:
         {
             "how to cite": Aspect(
                 {
-                    "CITATION file": has_file(
-                        data, lambda f: file_name(f).startswith("citation")
+                    "CITATION file": Pool(
+                        {
+                            "file": repository(
+                                has_file(
+                                    data, lambda f: file_name(f).startswith("citation")
+                                )
+                            ),
+                            "RSFC": assessment_tool(
+                                resqui_verdict(data, "software_has_citation")
+                            ),
+                        }
                     ),
-                    "RSFC": resqui_verdict(data, "software_has_citation"),
                     "OpenEBench": verdict(
                         openebench_metric(data, "project.documentation.citation")
                     ),
@@ -78,18 +94,18 @@ def citation_and_credit(data: IngestedData) -> MetricResult:
 
 
 def _open_access(data: IngestedData) -> dict[str, float | None]:
-    """Open-access verdict per publication (DOI), reconciled across sources."""
-    verdicts: dict[str, list[float | None]] = {}
+    """Open-access verdict per publication (DOI), Europe PMC and OpenAlex weighed."""
+    verdicts: dict[str, list[Evidence]] = {}
     for doi, record in data.europe_pmc.items():
         if record is not None and record.get("isOpenAccess") is not None:
             verdicts.setdefault(doi.lower(), []).append(
-                float(record["isOpenAccess"] == "Y")
+                registry(float(record["isOpenAccess"] == "Y"))
             )
     for doi, work in data.openalex.items():
         oa = ((work or {}).get("open_access") or {}).get("is_oa")
         if oa is not None:
-            verdicts.setdefault(doi.lower(), []).append(float(oa))
-    return {doi: placeholder_reconcile(v) for doi, v in verdicts.items()}
+            verdicts.setdefault(doi.lower(), []).append(registry(float(oa)))
+    return {doi: reconcile_evidence(v) for doi, v in verdicts.items()}
 
 
 def _publication_dois(data: IngestedData) -> set[str]:
@@ -143,7 +159,7 @@ def publications(data: IngestedData) -> MetricResult:
     access = _open_access(data)
     known = [v for v in access.values() if v is not None]
     share = sum(known) / len(known) if known else None
-    value = placeholder_reconcile([1.0, share])
+    value = placeholder_combine([1.0, share])
     note = f"{len(dois)} publication(s)"
     note += (
         f"; {sum(known):g} of {len(known)} with known status are open access."

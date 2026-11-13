@@ -27,10 +27,10 @@ def package_availability(data: IngestedData) -> MetricResult:
 
     Aspects and their sources:
 
-    - published package: Bioconda and Debian Med entries in RSEc,
+    - published package (any): Bioconda and Debian Med entries in RSEc,
       OpenEBench's package check, and OpenSSF Scorecard's
       ``has_published_package`` check;
-    - packaging recipe: a conda recipe (``meta.yaml``) or Python packaging
+    - packaging recipe (any): a conda recipe (``meta.yaml``) or Python packaging
       file (``pyproject.toml``, ``setup.py``, ``setup.cfg``) in the repository.
 
     OEBFAIR's ``has_published_package`` check is not used: it reported "no
@@ -82,8 +82,9 @@ def package_availability(data: IngestedData) -> MetricResult:
 def workflow_integration(data: IngestedData) -> MetricResult:
     """Whether the software can be used in workflow systems.
 
-    Sources: a Galaxy entry in RSEc, a Galaxy service link in bio.tools, and
-    workflow-manager files (Snakemake, Nextflow, CWL, WDL) in the repository.
+    Sources (any one suffices): a Galaxy entry in RSEc, a Galaxy service link
+    in bio.tools, and workflow-manager files (Snakemake, Nextflow, CWL, WDL) in
+    the repository.
 
     Parameters
     ----------
@@ -105,5 +106,6 @@ def workflow_integration(data: IngestedData) -> MetricResult:
             else float("Galaxy service" in links),
             "workflow files": has_file(data, is_workflow_file),
         },
+        rule="any",
         suggestion="Make the tool usable in Galaxy or a workflow manager.",
     )

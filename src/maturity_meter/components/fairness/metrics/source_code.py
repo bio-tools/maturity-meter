@@ -7,6 +7,11 @@ from maturity_meter.components.utils.checks import (
     verdict_metric,
 )
 from maturity_meter.components.utils.files import is_test_path
+from maturity_meter.components.utils.reliability import (
+    aggregator,
+    assessment_tool,
+    repository,
+)
 from maturity_meter.components.utils.sources import (
     biotools_types,
     has_file,
@@ -23,10 +28,10 @@ def source_availability(data: IngestedData) -> MetricResult:
 
     Aspects and their sources:
 
-    - public repository: the GitHub/GitLab repository and its visibility,
+    - public repository (evidence): the GitHub/GitLab repository's visibility,
       OpenEBench's public, online-repository and anonymous-access checks, and
       RSFC's ``version_control_use`` check;
-    - free download: OpenEBench's free-source and source-package checks, and
+    - free download (any): OpenEBench's free-source and source-package checks, and
       source-code downloads in bio.tools.
 
     Parameters
@@ -48,28 +53,39 @@ def source_availability(data: IngestedData) -> MetricResult:
                 {
                     # Without a repository record (not ingested) the
                     # visibility is unknown, not "private".
-                    "public GitHub/GitLab repository": None
-                    if repo is None
-                    else float(
-                        repo.get("visibility") == "public"
-                        or repo.get("private") is False
-                    ),
-                    "OpenEBench public source": verdict(
-                        openebench_metric(data, "distribution.sourcecode.public")
-                    ),
-                    "OpenEBench online repository": verdict(
-                        openebench_metric(
-                            data, "distribution.sourcecode.repository.online"
+                    "public GitHub/GitLab repository": repository(
+                        None
+                        if repo is None
+                        else float(
+                            repo.get("visibility") == "public"
+                            or repo.get("private") is False
                         )
                     ),
-                    "OpenEBench anonymous access": verdict(
-                        openebench_metric(
-                            data, "distribution.sourcecode.repository.anonymous"
+                    "OpenEBench public source": aggregator(
+                        verdict(
+                            openebench_metric(data, "distribution.sourcecode.public")
                         )
                     ),
-                    "RSFC version control": resqui_verdict(data, "version_control_use"),
+                    "OpenEBench online repository": aggregator(
+                        verdict(
+                            openebench_metric(
+                                data, "distribution.sourcecode.repository.online"
+                            )
+                        )
+                    ),
+                    "OpenEBench anonymous access": aggregator(
+                        verdict(
+                            openebench_metric(
+                                data, "distribution.sourcecode.repository.anonymous"
+                            )
+                        )
+                    ),
+                    "RSFC version control": assessment_tool(
+                        resqui_verdict(data, "version_control_use")
+                    ),
                 },
                 "Develop the software in a public version-controlled repository.",
+                rule="evidence",
             ),
             "free download": Aspect(
                 {
@@ -92,9 +108,9 @@ def source_availability(data: IngestedData) -> MetricResult:
 def binary_distribution(data: IngestedData) -> MetricResult:
     """Whether ready-to-use binaries can be downloaded.
 
-    Sources: assets of the latest GitHub/GitLab release, binary downloads in
-    bio.tools, and OpenEBench's free-binaries check. Package managers
-    (Bioconda, Debian, PyPI) are assessed by Compatibility's
+    Sources (any one suffices): assets of the latest GitHub/GitLab release,
+    binary downloads in bio.tools, and OpenEBench's free-binaries check.
+    Package managers (Bioconda, Debian, PyPI) are assessed by Compatibility's
     ``package_availability``.
 
     Parameters
@@ -107,10 +123,10 @@ def binary_distribution(data: IngestedData) -> MetricResult:
     MetricResult
         The reconciled verdict, or ``value=None`` if no source could check.
     """
-    repository = data.repository
+    repo_data = data.repository
     assets = None
-    if "latest_release" in repository:
-        latest = repository.get("latest_release") or {}
+    if "latest_release" in repo_data:
+        latest = repo_data.get("latest_release") or {}
         release_assets = latest.get("assets")
         # GitHub lists assets directly; GitLab under assets.links (its
         # assets.sources are the automatic source archives).
@@ -129,6 +145,7 @@ def binary_distribution(data: IngestedData) -> MetricResult:
                 openebench_metric(data, "distribution.binaries.freeness")
             ),
         },
+        rule="any",
         suggestion="Attach ready-to-use binaries to the releases.",
     )
 
@@ -136,8 +153,8 @@ def binary_distribution(data: IngestedData) -> MetricResult:
 def software_tests(data: IngestedData) -> MetricResult:
     """Whether the software comes with tests.
 
-    Sources: test files or folders in the repository and RSFC's
-    ``software_has_tests`` check. Whether the tests run automatically is
+    Sources (weighed as evidence): test files or folders in the repository
+    and RSFC's ``software_has_tests`` check. Whether the tests run automatically is
     assessed by Maintainability's ``continuous_integration``.
 
     Parameters
@@ -153,9 +170,10 @@ def software_tests(data: IngestedData) -> MetricResult:
     return verdict_metric(
         "software_tests",
         {
-            "test files": has_file(data, is_test_path),
-            "RSFC": resqui_verdict(data, "software_has_tests"),
+            "test files": repository(has_file(data, is_test_path)),
+            "RSFC": assessment_tool(resqui_verdict(data, "software_has_tests")),
         },
+        rule="evidence",
         suggestion="Add automated tests.",
     )
 
@@ -163,8 +181,8 @@ def software_tests(data: IngestedData) -> MetricResult:
 def source_archival(data: IngestedData) -> MetricResult:
     """Whether the source is archived for the long term.
 
-    Sources: Zenodo and Software Heritage references in the README, and
-    RSFC's ``archived_in_software_heritage`` and
+    Sources (any one suffices): Zenodo and Software Heritage references in
+    the README, and RSFC's ``archived_in_software_heritage`` and
     ``archived_in_scholarly_repository`` checks.
 
     Parameters
@@ -191,5 +209,6 @@ def source_archival(data: IngestedData) -> MetricResult:
                 data, "archived_in_scholarly_repository"
             ),
         },
+        rule="any",
         suggestion="Archive the source code in Software Heritage and on Zenodo.",
     )

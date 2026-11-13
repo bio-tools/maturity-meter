@@ -6,6 +6,7 @@ from maturity_meter.components.utils.checks import (
     resqui_verdict,
 )
 from maturity_meter.components.utils.files import LINTER_FILES, is_ci_config
+from maturity_meter.components.utils.reliability import assessment_tool, repository
 from maturity_meter.components.utils.sources import file_name, has_file
 from maturity_meter.models import IngestedData, MetricResult
 
@@ -15,8 +16,9 @@ def continuous_integration(data: IngestedData) -> MetricResult:
 
     Aspects and their sources:
 
-    - CI configured: CI configuration files (GitHub Actions, GitLab CI,
-      Travis, CircleCI, ...) and RSFC's ``repository_workflows`` check;
+    - CI configured (evidence): CI configuration files (GitHub Actions,
+      GitLab CI, Travis, CircleCI, ...) and RSFC's ``repository_workflows``
+      check;
     - changes tested: OpenSSF Scorecard's ``has_ci-tests`` check, which looks
       for tests run on pull/merge requests before merging.
 
@@ -35,12 +37,13 @@ def continuous_integration(data: IngestedData) -> MetricResult:
         {
             "CI configured": Aspect(
                 {
-                    "CI configuration": has_file(data, is_ci_config),
-                    "RSFC repository workflows": resqui_verdict(
-                        data, "repository_workflows"
+                    "CI configuration": repository(has_file(data, is_ci_config)),
+                    "RSFC repository workflows": assessment_tool(
+                        resqui_verdict(data, "repository_workflows")
                     ),
                 },
                 "Set up continuous integration (e.g. GitHub Actions).",
+                rule="evidence",
             ),
             "changes tested": Aspect(
                 {"OpenSSF Scorecard": resqui_verdict(data, "has_ci-tests")},

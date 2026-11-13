@@ -18,9 +18,9 @@ def requirements_specified(data: IngestedData) -> MetricResult:
 
     Combines a dependency manifest in the repository (e.g.
     ``requirements.txt``, ``pyproject.toml``, ``environment.yml``,
-    ``package.json``, ``DESCRIPTION``, ``Cargo.toml``, ``go.mod``) and resqui's
-    ``requirements_specified`` check (if run) with
-    :func:`placeholder_reconcile`.
+    ``package.json``, ``DESCRIPTION``, ``Cargo.toml``, ``go.mod``) or RSFC's
+    ``requirements_specified`` check, which also reads the README (any one
+    suffices).
 
     Parameters
     ----------
@@ -48,6 +48,7 @@ def requirements_specified(data: IngestedData) -> MetricResult:
             ),
             "RSFC": resqui_verdict(data, "requirements_specified"),
         },
+        rule="any",
         suggestion="Declare the dependencies (e.g. in requirements.txt).",
         missing="Repository file list unavailable.",
         detail=f"Manifests: {', '.join(manifests)}." if manifests else "",

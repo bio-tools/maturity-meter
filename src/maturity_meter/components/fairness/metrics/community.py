@@ -13,8 +13,8 @@ from maturity_meter.models import IngestedData, MetricResult
 def issue_tracking(data: IngestedData) -> MetricResult:
     """Whether users can report issues in a public tracker.
 
-    Sources: the GitHub/GitLab issue tracker, OpenEBench's public tracker check
-    and an issue-tracker link in bio.tools.
+    Sources (any one suffices): the GitHub/GitLab issue tracker, OpenEBench's
+    public tracker check and an issue-tracker link in bio.tools.
 
     Parameters
     ----------
@@ -44,6 +44,7 @@ def issue_tracking(data: IngestedData) -> MetricResult:
             if links is None
             else float("Issue tracker" in links),
         },
+        rule="any",
         suggestion="Enable a public issue tracker.",
     )
 
@@ -51,8 +52,9 @@ def issue_tracking(data: IngestedData) -> MetricResult:
 def project_website(data: IngestedData) -> MetricResult:
     """Whether the software has its own website.
 
-    Sources: the GitHub homepage field, GitHub Pages, a bio.tools homepage
-    other than the repository, and OpenEBench's website check.
+    Sources (any one suffices): the GitHub homepage field, GitHub Pages, a
+    bio.tools homepage other than the repository, and OpenEBench's check that
+    that homepage is up.
 
     Parameters
     ----------
@@ -68,7 +70,12 @@ def project_website(data: IngestedData) -> MetricResult:
     repository = data.repository
     homepage = (data.biotools or {}).get("homepage")
     repo_url = data.request.repository.rstrip("/").lower()
-    operational = openebench_metric(data, "project.website.operational")
+    own_site = bool(homepage) and str(homepage).rstrip("/").lower() != repo_url
+    # OpenEBench checks the bio.tools homepage; when that is the repository
+    # itself, "website up" says nothing about a website of the project's own.
+    operational = (
+        openebench_metric(data, "project.website.operational") if own_site else None
+    )
     return verdict_metric(
         "project_website",
         {
@@ -78,14 +85,11 @@ def project_website(data: IngestedData) -> MetricResult:
             "GitHub Pages": verdict(repository.get("github_pages"))
             if "github_pages" in repository
             else None,
-            "bio.tools homepage": None
-            if data.biotools is None
-            else float(
-                bool(homepage) and str(homepage).rstrip("/").lower() != repo_url
-            ),
+            "bio.tools homepage": None if data.biotools is None else float(own_site),
             "OpenEBench (website up)": None
             if operational is None
             else float(operational == 200),
         },
+        rule="any",
         suggestion="Provide a project website.",
     )

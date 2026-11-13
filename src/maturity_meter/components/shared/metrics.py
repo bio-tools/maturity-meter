@@ -14,6 +14,7 @@ from maturity_meter.components.utils.checks import (
     verdict_metric,
 )
 from maturity_meter.components.utils.files import DEPENDENCY_UPDATE_FILES
+from maturity_meter.components.utils.reliability import assessment_tool, repository
 from maturity_meter.components.utils.sources import (
     biotools_types,
     file_name,
@@ -33,8 +34,9 @@ _CHANNEL_LINKS = {"Mailing list", "Helpdesk", "Discussion forum", "Social media"
 def dependency_management(data: IngestedData) -> MetricResult:
     """Whether dependencies are kept up to date by a tool.
 
-    Sources: OpenSSF Scorecard's ``dependency_management`` check and a
-    Dependabot or Renovate configuration file in the repository.
+    Sources (weighed as evidence): OpenSSF Scorecard's
+    ``dependency_management`` check and a Dependabot or Renovate configuration
+    file in the repository.
 
     Parameters
     ----------
@@ -50,9 +52,14 @@ def dependency_management(data: IngestedData) -> MetricResult:
     return verdict_metric(
         "dependency_management",
         {
-            "OpenSSF Scorecard": resqui_verdict(data, "dependency_management"),
-            "Dependabot/Renovate config": has_any_file(data, DEPENDENCY_UPDATE_FILES),
+            "OpenSSF Scorecard": assessment_tool(
+                resqui_verdict(data, "dependency_management")
+            ),
+            "Dependabot/Renovate config": repository(
+                has_any_file(data, DEPENDENCY_UPDATE_FILES)
+            ),
         },
+        rule="evidence",
         suggestion="Configure a dependency update tool such as Dependabot or Renovate.",
         missing="No dependency check or file list available.",
     )
@@ -63,10 +70,11 @@ def releases_and_versioning(data: IngestedData) -> MetricResult:
 
     Aspects and their sources:
 
-    - releases: the latest GitHub/GitLab release and RSFC's ``has_releases``
-      check;
-    - version numbers: whether the latest release's tag looks like a version
-      (e.g. ``v1.2.3``) and RSFC's ``versioning_standards_use`` check.
+    - releases (evidence): the latest GitHub/GitLab release and RSFC's
+      ``has_releases`` check;
+    - version numbers (evidence): whether the latest release's tag looks like
+      a version (e.g. ``v1.2.3``) and RSFC's ``versioning_standards_use``
+      check.
 
     Parameters
     ----------
@@ -79,29 +87,32 @@ def releases_and_versioning(data: IngestedData) -> MetricResult:
         The aspects combined, or ``value=None`` if release information is
         unavailable.
     """
-    repository = data.repository
-    latest = repository.get("latest_release")
+    latest = data.repository.get("latest_release")
     tag = str((latest or {}).get("tag_name") or "")
     return aspect_metric(
         "releases_and_versioning",
         {
             "releases": Aspect(
                 {
-                    "repository releases": verdict(latest)
-                    if "latest_release" in repository
-                    else None,
-                    "RSFC": resqui_verdict(data, "has_releases"),
+                    "repository releases": repository(
+                        verdict(latest) if "latest_release" in data.repository else None
+                    ),
+                    "RSFC": assessment_tool(resqui_verdict(data, "has_releases")),
                 },
                 "Publish versioned releases (e.g. tagged GitHub/GitLab releases).",
+                rule="evidence",
             ),
             "version numbers": Aspect(
                 {
-                    "version-like tag": float(bool(_VERSION_TAG.match(tag)))
-                    if tag
-                    else None,
-                    "RSFC": resqui_verdict(data, "versioning_standards_use"),
+                    "version-like tag": repository(
+                        float(bool(_VERSION_TAG.match(tag))) if tag else None
+                    ),
+                    "RSFC": assessment_tool(
+                        resqui_verdict(data, "versioning_standards_use")
+                    ),
                 },
                 "Tag releases with version numbers (e.g. v1.2.3).",
+                rule="evidence",
             ),
         },
         missing="Release information unavailable.",
@@ -113,10 +124,10 @@ def contribution_and_governance(data: IngestedData) -> MetricResult:
 
     Aspects and their sources:
 
-    - contribution guidelines: a CONTRIBUTING file and RSFC's
+    - contribution guidelines (evidence): a CONTRIBUTING file and RSFC's
       ``has_contribution_guidelines`` check;
-    - governance: GOVERNANCE and CODE_OF_CONDUCT files;
-    - communication channels: RSFC's ``has_active_communication_channels``
+    - governance (any): GOVERNANCE and CODE_OF_CONDUCT files;
+    - communication channels (any): RSFC's ``has_active_communication_channels``
       check, OpenEBench's support e-mail, and mailing-list, helpdesk or forum
       links in bio.tools.
 
@@ -136,12 +147,17 @@ def contribution_and_governance(data: IngestedData) -> MetricResult:
         {
             "contribution guidelines": Aspect(
                 {
-                    "CONTRIBUTING file": has_file(
-                        data, lambda f: file_name(f).startswith("contributing")
+                    "CONTRIBUTING file": repository(
+                        has_file(
+                            data, lambda f: file_name(f).startswith("contributing")
+                        )
                     ),
-                    "RSFC": resqui_verdict(data, "has_contribution_guidelines"),
+                    "RSFC": assessment_tool(
+                        resqui_verdict(data, "has_contribution_guidelines")
+                    ),
                 },
                 "Add a CONTRIBUTING.md describing how to contribute.",
+                rule="evidence",
             ),
             "governance": Aspect(
                 {
@@ -176,7 +192,8 @@ def contribution_and_governance(data: IngestedData) -> MetricResult:
 def containerization(data: IngestedData) -> MetricResult:
     """Whether the software can run in a container or isolated environment.
 
-    Sources: container definitions (Dockerfile, Containerfile, Singularity),
+    Sources (any one suffices): container definitions (Dockerfile,
+    Containerfile, Singularity),
     conda environment files, BioContainers (RSEc), and RSFC's
     ``software_is_containerized`` check.
 
@@ -210,5 +227,6 @@ def containerization(data: IngestedData) -> MetricResult:
             ),
             "RSFC": resqui_verdict(data, "software_is_containerized"),
         },
+        rule="any",
         suggestion="Provide a Dockerfile or a conda environment file.",
     )

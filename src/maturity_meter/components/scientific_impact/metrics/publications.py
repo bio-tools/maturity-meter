@@ -5,8 +5,8 @@ from typing import Any
 
 from maturity_meter.components.utils.scaling import (
     log_scale,
-    placeholder_reconcile,
     ratio_to_average_scale,
+    reconcile_any,
 )
 from maturity_meter.models import IngestedData, MetricResult
 
@@ -75,8 +75,9 @@ def citation_count(data: IngestedData) -> MetricResult:
     Europe PMC ``citedByCount`` for the request's DOIs, and the bio.tools
     ``citationCount`` and OpenEBench ``cit_count`` of the tool's registered
     publications. Each source's counts are summed over its publications and
-    scaled with :func:`log_scale` (1 from CITATION_REFERENCE); the scores of
-    the sources are then reconciled with :func:`placeholder_reconcile`.
+    scaled with :func:`log_scale` (1 from CITATION_REFERENCE); the highest
+    score is used (:func:`reconcile_any`), since every database undercounts by
+    a different amount and the highest count is the most complete.
 
     Parameters
     ----------
@@ -112,7 +113,7 @@ def citation_count(data: IngestedData) -> MetricResult:
     }
     return MetricResult(
         name="citation_count",
-        value=placeholder_reconcile(list(scores.values())),
+        value=reconcile_any(list(scores.values())),
         note=(
             "; ".join(
                 f"{source}: {totals[source]} citations ({scores[source]:.2f})"

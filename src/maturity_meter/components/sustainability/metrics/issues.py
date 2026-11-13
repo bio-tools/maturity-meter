@@ -6,7 +6,7 @@ from typing import Any
 
 from maturity_meter.components.utils.scaling import (
     half_point_decay_scale,
-    placeholder_reconcile,
+    reconcile_priority,
 )
 from maturity_meter.components.utils.sources import (
     parse_time,
@@ -95,8 +95,9 @@ def issue_close_time(data: IngestedData) -> MetricResult:
     """How quickly issues are closed (lower is better).
 
     Each source is scaled with :func:`half_point_decay_scale` (0.5 at
-    CLOSE_TIME_HALF_DAYS) before the scores are reconciled with
-    :func:`placeholder_reconcile`:
+    CLOSE_TIME_HALF_DAYS); the repository's own issues are used when
+    available, and OpenEBench's figure (of unknown sample and method) only
+    otherwise (:func:`reconcile_priority`):
 
     - the median close time of the recently closed GitHub/GitLab issues (the
       median, as CHAOSS recommends, since a few long-open issues skew the
@@ -137,7 +138,7 @@ def issue_close_time(data: IngestedData) -> MetricResult:
         )
     return MetricResult(
         name="issue_close_time",
-        value=placeholder_reconcile(list(scores.values())),
+        value=reconcile_priority(list(scores.values())),
         note=(
             "; ".join(
                 f"{source}: {found[source]:.1f} days ({score:.2f})"
