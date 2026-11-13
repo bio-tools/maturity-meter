@@ -18,6 +18,25 @@ The result is printed as JSON. `-o result.json` also saves it, and
 `--data data.json`. Missing or null sources, including FAIR-Checker in older
 files, are fetched again.
 
+To evaluate a tool using only its bio.tools ID:
+
+```bash
+poetry run maturity-meter evaluate --biotools-id example -o result.json
+```
+
+The bio.tools API entry supplies the repository and publication DOIs. The first
+supported GitHub or GitLab repository root is selected, checking the homepage
+first, then links and downloads in their listed order. Links to files, releases
+or other paths inside a repository are not treated as repository roots. If no
+supported repository is found, the command fails with a message; provide the
+repository explicitly instead. For publications with only a PMID or PMCID,
+Europe PMC is queried for a DOI; missing or failed lookups are logged and
+those publications cannot be added to the DOI-based pipeline. Additional
+`--doi` arguments are combined with the entry's DOIs in ID-only mode. When a
+repository is explicitly supplied, existing behavior is unchanged: only
+explicit `--doi` values are used. A bio.tools entry supplied via `--data` is
+reused instead of fetched again.
+
 FAIR-Checker evaluates the repository URL via its official API, separately
 from resqui. The bundled resqui configuration runs RSFC, OEBFAIR, HowFairIs
 and OpenSSF Scorecard checks corresponding to the
@@ -45,12 +64,25 @@ maturity-meter batch "results/bio.tools entries - github_gitlab_tools_with_publi
   --output-dir results/batch
 ```
 
+Alternatively, put one bio.tools ID per line in a UTF-8 text file and run:
+
+```bash
+maturity-meter batch ids.txt --ids --output-dir results/batch-ids
+```
+
+Blank lines are ignored; duplicate or invalid IDs are reported as errors.
+The same repository and DOI resolution rules apply as for ID-only evaluation.
+Output files are named after the bio.tools ID. A dry run validates
+the IDs without contacting bio.tools, so repository resolution happens only
+during evaluation. On resume, saved raw data is scored without another lookup;
+`--fill-missing` reuses its saved request and entry.
+
 Add `--dry-run` to list and validate entries, and what would be done for
 each (fetch, or score saved data), without evaluating or creating output.
 Each tool's ingested data is saved in `results/batch/raw/` as soon as it is
 fetched, and its scored result (as `evaluate` prints it) in
-`results/batch/results/`, both with the CSV row number and bio.tools ID in the
-filename. A tool that already has a data file is **not fetched again**: its
+`results/batch/results/`, both named `<bio.tools ID>.json`. A tool that already
+has a data file is **not fetched again**: its
 saved data is scored straight away (`SCORED` in the output), so an interrupted
 batch continues where it stopped, and re-running a batch after the scoring
 changed re-scores every tool in seconds. Results are always rewritten; data
@@ -61,6 +93,10 @@ mistaken for a completed run. Use a separate output directory for each CSV.
 Each tool's log is written to `results/batch/logs/`, named like its data file;
 the terminal shows one line per tool as it starts and finishes, and a summary
 of the tools fetched and scored from saved data.
+
+Existing numbered data files from older runs are also recognized. If multiple
+saved files match an ID, the tool is reported as an error rather than choosing
+one or overwriting data. Repeated IDs in a batch are rejected.
 
 Several tools are evaluated at once (`--jobs`, or `MATURITY_METER_BATCH_JOBS`;
 4 by default), so the quick,
@@ -354,8 +390,8 @@ Add `--dry-run` to list and validate entries, and what would be done for
 each (fetch, or score saved data), without evaluating or creating output.
 Each tool's ingested data is saved in `results/batch/raw/` as soon as it is
 fetched, and its scored result (as `evaluate` prints it) in
-`results/batch/results/`, both with the CSV row number and bio.tools ID in the
-filename. A tool that already has a data file is **not fetched again**: its
+`results/batch/results/`, both named `<bio.tools ID>.json`. A tool that already
+has a data file is **not fetched again**: its
 saved data is scored straight away (`SCORED` in the output), so an interrupted
 batch continues where it stopped, and re-running a batch after the scoring
 changed re-scores every tool in seconds. Results are always rewritten; data

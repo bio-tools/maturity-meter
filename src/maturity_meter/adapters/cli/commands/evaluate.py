@@ -13,7 +13,11 @@ from typing import Annotated
 import typer
 from pydantic import ValidationError
 
-from maturity_meter.models import EvaluationRequest
+from maturity_meter.models import EvaluationRequest, SuppliedData
+from maturity_meter.services.biotools_resolution import (
+    BiotoolsResolutionError,
+    resolve_biotools,
+)
 from maturity_meter.services.ingestion import RepositoryFetchError, ingest
 from maturity_meter.services.processing import score
 
@@ -52,8 +56,9 @@ def run(
 
 def command(
     repository: Annotated[
-        str, typer.Argument(help="URL of a GitHub or GitLab (any instance) repository.")
-    ],
+        str | None,
+        typer.Argument(help="Repository URL; optional when --biotools-id is given."),
+    ] = None,
     doi: Annotated[
         list[str] | None,
         typer.Option("--doi", help="DOI of a related publication (repeatable)."),
@@ -94,13 +99,28 @@ def command(
 ) -> None:
     """Evaluate maturity of a repository and print the result as JSON."""
     try:
-        request = EvaluationRequest(
-            repository=repository,
-            dois=doi or [],
-            biotools_id=biotools_id,
-            data=json.loads(data.read_text()) if data else {},
+        supplied = SuppliedData.model_validate(
+            json.loads(data.read_text()) if data else {}
         )
-    except (ValidationError, json.JSONDecodeError) as error:
+        if repository:
+            request = EvaluationRequest(
+                repository=repository,
+                dois=doi or [],
+                biotools_id=biotools_id,
+                data=supplied,
+            )
+        elif biotools_id:
+            request = asyncio.run(
+                resolve_biotools(biotools_id, dois=doi, data=supplied)
+            )
+        else:
+            raise BiotoolsResolutionError("Provide a repository or --biotools-id.")
+    except (
+        ValidationError,
+        json.JSONDecodeError,
+        BiotoolsResolutionError,
+        OSError,
+    ) as error:
         raise typer.BadParameter(str(error)) from error
     try:
         typer.echo(run(request, output, save_data))
