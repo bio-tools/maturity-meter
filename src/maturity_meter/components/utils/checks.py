@@ -1,8 +1,19 @@
-"""Helpers to read yes/no verdicts: resqui checks and repository files."""
+"""Helpers to read yes/no verdicts and to build metrics from them.
 
-from collections.abc import Iterable
+A metric is either a single question answered by several sources
+(:func:`verdict_metric`) or several distinct questions about one concept, its
+aspects (:func:`aspect_metric`). Sources answering the same question are
+reconciled with :func:`placeholder_reconcile`; aspects are combined with
+:func:`placeholder_combine`.
+"""
 
-from maturity_meter.components.utils.scaling import placeholder_reconcile
+from collections.abc import Collection, Iterable
+from dataclasses import dataclass
+
+from maturity_meter.components.utils.scaling import (
+    placeholder_combine,
+    placeholder_reconcile,
+)
 from maturity_meter.components.utils.sources import has_file
 from maturity_meter.models import IngestedData, MetricResult
 
@@ -16,7 +27,11 @@ FAILING_OUTPUTS = {"false", "invalid", "insecure"}
 NO_RESQUI_NOTE = "resqui did not check this (it needs Docker and a GitHub repository)."
 
 
-def resqui_verdict(data: IngestedData, indicator: str) -> float | None:
+def resqui_verdict(
+    data: IngestedData,
+    indicator: str,
+    plugins: Collection[str] | None = None,
+) -> float | None:
     """Verdict of the resqui check(s) for one EVERSE indicator.
 
     Parameters
@@ -25,6 +40,10 @@ def resqui_verdict(data: IngestedData, indicator: str) -> float | None:
         Ingested data; uses ``quality_checks``.
     indicator : str
         EVERSE indicator identifier, e.g. ``"no_leaked_credentials"``.
+    plugins : collection of str, optional
+        Only use the checks of these plugins (``checkingSoftware`` names, e.g.
+        ``{"RSFC", "OEBFAIR"}``); all plugins by default. Used to leave out a
+        plugin whose verdict for the indicator is known to be unreliable.
 
     Returns
     -------
@@ -37,6 +56,9 @@ def resqui_verdict(data: IngestedData, indicator: str) -> float | None:
     for check in (data.quality_checks or {}).get("checks") or []:
         assessed = str((check.get("assessesIndicator") or {}).get("@id", ""))
         if assessed.rstrip("/").rsplit("/", 1)[-1] != indicator:
+            continue
+        software = (check.get("checkingSoftware") or {}).get("name")
+        if plugins is not None and software not in plugins:
             continue
         output = str(check.get("output", "")).lower()
         if output in PASSING_OUTPUTS:
@@ -136,4 +158,96 @@ def verdict_metric(
         value=value,
         note=f"{note} {detail}".strip(),
         suggestions=[suggestion] if suggestion and value == 0 else [],
+    )
+
+
+def _below_half(value: float | None) -> bool:
+    return value is not None and value < 0.5
+
+
+def _wording(value: float) -> str:
+    if value == 1:
+        return "yes"
+    if value == 0:
+        return "no"
+    return f"{value:.2f}"
+
+
+@dataclass(frozen=True)
+class Aspect:
+    """One question a metric answers, and every source's answer to it.
+
+    Parameters
+    ----------
+    findings : dict[str, float | None]
+        Answer per source, a score in [0, 1] (1 or 0 for yes/no checks), or
+        None when the source has no answer. Several answers are reconciled
+        with :func:`placeholder_reconcile`.
+    suggestion : str, optional
+        Suggestion given when the aspect scores below 0.5.
+    """
+
+    findings: dict[str, float | None]
+    suggestion: str | None = None
+
+    @property
+    def value(self) -> float | None:
+        """The reconciled answer, or None if no source has one."""
+        answers = list(self.findings.values())
+        return answers[0] if len(answers) == 1 else placeholder_reconcile(answers)
+
+
+def aspect_metric(
+    name: str,
+    aspects: dict[str, Aspect],
+    *,
+    missing: str = "No source could check this.",
+) -> MetricResult:
+    """A metric made of several aspects (distinct questions) of one concept.
+
+    Each aspect reconciles the sources that answer it; the metric's value
+    combines the assessed aspects with :func:`placeholder_combine`. An aspect
+    no source could answer is left out rather than counted as a no.
+
+    Parameters
+    ----------
+    name : str
+        Metric name.
+    aspects : dict[str, Aspect]
+        The metric's aspects, by a short description (e.g. ``"declared"``).
+    missing : str
+        Note when no aspect could be assessed.
+
+    Returns
+    -------
+    MetricResult
+        The combined metric. Its note gives each aspect's answer and every
+        source's answer to it; its suggestions those of the aspects scoring
+        below 0.5.
+    """
+    values = {label: aspect.value for label, aspect in aspects.items()}
+    value = placeholder_combine(list(values.values()))
+    if value is None:
+        return MetricResult(name=name, value=None, note=missing)
+    parts = []
+    for label, aspect in aspects.items():
+        answer = values[label]
+        if answer is None:
+            parts.append(f"{label}: unknown")
+            continue
+        sources = ", ".join(
+            f"{source} {_wording(found)}"
+            for source, found in aspect.findings.items()
+            if found is not None
+        )
+        parts.append(f"{label}: {_wording(answer)} ({sources})")
+    return MetricResult(
+        name=name,
+        value=value,
+        note="; ".join(parts) + ".",
+        suggestions=[
+            aspect.suggestion
+            for label, aspect in aspects.items()
+            if aspect.suggestion and _below_half(values[label])
+        ],
     )

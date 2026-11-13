@@ -46,6 +46,16 @@ def _citation_counts(data: IngestedData) -> dict[str, dict[str, int]]:
     for doi, record in data.europe_pmc.items():
         if record is not None:
             add(doi, "Europe PMC", record.get("citedByCount"))
+    for publication in (data.biotools or {}).get("publication") or []:
+        key = publication.get("doi") or (
+            f"pmid:{publication['pmid']}" if publication.get("pmid") else None
+        )
+        if key:
+            add(
+                str(key),
+                "bio.tools",
+                (publication.get("metadata") or {}).get("citationCount"),
+            )
     metrics = (data.openebench or {}).get("metrics") or {}
     for publication in (metrics.get("project") or {}).get("publications") or []:
         for entry in publication.get("entries") or []:
@@ -61,8 +71,9 @@ def citation_count(data: IngestedData) -> MetricResult:
     """Citations summed over all publications, scaled up to CITATION_CAP.
 
     Every source with a count contributes: OpenAlex ``cited_by_count`` and
-    Europe PMC ``citedByCount`` for the request's DOIs, and OpenEBench's
-    ``cit_count`` for the tool's registered publications. Counts of the same
+    Europe PMC ``citedByCount`` for the request's DOIs, and the bio.tools
+    ``citationCount`` and OpenEBench ``cit_count`` of the tool's registered
+    publications. Counts of the same
     publication from different sources are combined with
     :func:`placeholder_reconcile`; the results are summed over publications.
 

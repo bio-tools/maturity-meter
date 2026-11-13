@@ -120,3 +120,39 @@ def rsec_has(data: IngestedData, matches: Callable[[str], bool]) -> float | None
     if data.rsec is None:
         return None
     return float(any(matches(name.lower()) for name in data.rsec.get("files") or []))
+
+
+_FTR = "https://w3id.org/ftr#"
+# FAIR-Checker's scores: 0 = NO, 1 = WEAK, 2 = STRONG (metrics/Evaluation.py).
+_FAIR_CHECKER_SCALE = {0: 0.0, 1: 0.5, 2: 1.0}
+
+
+def fair_checker_score(data: IngestedData, test: str) -> float | None:
+    """FAIR-Checker's score for one test, on a 0-1 scale.
+
+    FAIR-Checker evaluates the metadata embedded in the web page of the
+    repository URL (JSON-LD, RDFa, microdata), so its tests describe that
+    page's machine-readable metadata.
+
+    Parameters
+    ----------
+    data : IngestedData
+        Ingested data; uses ``fair_checker``.
+    test : str
+        FAIR-Checker test identifier, e.g. ``"R11"`` (R1.1, licence metadata).
+
+    Returns
+    -------
+    float | None
+        0 (NO), 0.5 (WEAK) or 1 (STRONG); None without FAIR-Checker data or
+        a result for the test.
+    """
+    for node in data.fair_checker or []:
+        if f"{_FTR}TestResult" not in (node.get("@type") or []):
+            continue
+        tests = node.get(f"{_FTR}outputFromTest") or [{}]
+        if str(tests[0].get("@id", "")).rsplit("/test/", 1)[-1] != test:
+            continue
+        values = node.get("http://www.w3.org/ns/prov#value") or [{}]
+        return _FAIR_CHECKER_SCALE.get(values[0].get("@value"))
+    return None

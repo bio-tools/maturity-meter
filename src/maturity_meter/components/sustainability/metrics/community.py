@@ -1,13 +1,8 @@
 """Sustainability metrics on the contributor community."""
 
-from maturity_meter.components.utils.checks import (
-    resqui_verdict,
-    verdict_metric,
-)
 from maturity_meter.components.utils.scaling import (
     placeholder_scale,
 )
-from maturity_meter.components.utils.sources import file_name, has_file
 from maturity_meter.models import IngestedData, MetricResult
 
 SIMPSON_CAP = 4.0
@@ -57,34 +52,4 @@ def inverse_simpson_index(data: IngestedData) -> MetricResult:
             + (f", {bots} bot(s) excluded" if bots else "")
             + f" (scores 1 from {SIMPSON_CAP:g})."
         ),
-    )
-
-
-def has_contribution_guidelines(data: IngestedData) -> MetricResult:
-    """Whether the project provides contribution guidelines.
-
-    Combines a ``CONTRIBUTING*`` file in the repository and resqui's
-    ``has_contribution_guidelines`` check (if run) with
-    :func:`placeholder_reconcile`.
-
-    Parameters
-    ----------
-    data : IngestedData
-        Ingested data.
-
-    Returns
-    -------
-    MetricResult
-        1 if found, 0 if not, or ``value=None`` without a file list or check.
-    """
-    return verdict_metric(
-        "has_contribution_guidelines",
-        {
-            "CONTRIBUTING file": has_file(
-                data, lambda f: file_name(f).startswith("contributing")
-            ),
-            "resqui check": resqui_verdict(data, "has_contribution_guidelines"),
-        },
-        suggestion="Add a CONTRIBUTING.md describing how to contribute.",
-        missing="Repository file list unavailable.",
     )

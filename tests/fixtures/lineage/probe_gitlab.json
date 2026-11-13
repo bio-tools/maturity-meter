@@ -31,7 +31,11 @@
       ".github/dependabot.yml",
       "docs/index.md",
       "src/probe/__init__.py",
-      "tests/test_probe.py"
+      "tests/test_probe.py",
+      ".gitlab-ci.yml",
+      "SECURITY.md",
+      ".gitignore",
+      "workflow/Snakefile"
     ],
     "default_branch_protected": true,
     "contributors": [
@@ -151,11 +155,26 @@
         "type": [
           "Issue tracker"
         ]
+      },
+      {
+        "url": "https://example.org/galaxy",
+        "type": [
+          "Galaxy service"
+        ]
+      },
+      {
+        "url": "https://example.org/mailing",
+        "type": [
+          "Mailing list"
+        ]
       }
     ],
     "publication": [
       {
-        "doi": "10.1000/probe"
+        "doi": "10.1000/probe",
+        "metadata": {
+          "citationCount": 5
+        }
       }
     ]
   },
@@ -184,7 +203,9 @@
         "documentation": {
           "general": true,
           "manual": true,
-          "citation": true
+          "citation": true,
+          "api": true,
+          "training_material": true
         },
         "summary": {
           "description": true
@@ -201,26 +222,32 @@
               }
             ]
           }
-        ]
+        ],
+        "readme": true
       },
       "distribution": {
         "sourcecode": {
           "public": true,
           "free": true,
           "repository": {
-            "online": true
-          }
+            "online": true,
+            "anonymous": true
+          },
+          "license": true,
+          "readme": true
         },
         "binaries": {
           "freeness": true
         },
-        "packages": true
+        "packages": true,
+        "source_packages": true
       },
       "support": {
         "issue_tracking": {
           "public_tracker": true,
           "resolve_time": "P3D"
-        }
+        },
+        "email": true
       }
     }
   },
@@ -231,7 +258,7 @@
           "@id": "https://w3id.org/everse/i/indicators/archived_in_scholarly_repository"
         },
         "checkingSoftware": {
-          "name": "probe"
+          "name": "RSFC"
         },
         "output": "true"
       },
@@ -240,7 +267,7 @@
           "@id": "https://w3id.org/everse/i/indicators/archived_in_software_heritage"
         },
         "checkingSoftware": {
-          "name": "probe"
+          "name": "RSFC"
         },
         "output": "true"
       },
@@ -249,7 +276,7 @@
           "@id": "https://w3id.org/everse/i/indicators/codemeta_completeness"
         },
         "checkingSoftware": {
-          "name": "probe"
+          "name": "RSFC"
         },
         "output": "true"
       },
@@ -258,7 +285,7 @@
           "@id": "https://w3id.org/everse/i/indicators/dependency_management"
         },
         "checkingSoftware": {
-          "name": "probe"
+          "name": "OpenSSF Scorecard"
         },
         "output": "true"
       },
@@ -267,7 +294,7 @@
           "@id": "https://w3id.org/everse/i/indicators/descriptive_metadata"
         },
         "checkingSoftware": {
-          "name": "probe"
+          "name": "OEBFAIR"
         },
         "output": "true"
       },
@@ -276,7 +303,7 @@
           "@id": "https://w3id.org/everse/i/indicators/has_ci-tests"
         },
         "checkingSoftware": {
-          "name": "probe"
+          "name": "OpenSSF Scorecard"
         },
         "output": "true"
       },
@@ -285,7 +312,7 @@
           "@id": "https://w3id.org/everse/i/indicators/has_contribution_guidelines"
         },
         "checkingSoftware": {
-          "name": "probe"
+          "name": "RSFC"
         },
         "output": "true"
       },
@@ -294,7 +321,7 @@
           "@id": "https://w3id.org/everse/i/indicators/has_no_linting_issues"
         },
         "checkingSoftware": {
-          "name": "probe"
+          "name": "SuperLinter"
         },
         "output": "true"
       },
@@ -303,7 +330,7 @@
           "@id": "https://w3id.org/everse/i/indicators/has_releases"
         },
         "checkingSoftware": {
-          "name": "probe"
+          "name": "RSFC"
         },
         "output": "true"
       },
@@ -312,7 +339,7 @@
           "@id": "https://w3id.org/everse/i/indicators/human_code_review_requirement"
         },
         "checkingSoftware": {
-          "name": "probe"
+          "name": "OpenSSF Scorecard"
         },
         "output": "true"
       },
@@ -321,7 +348,7 @@
           "@id": "https://w3id.org/everse/i/indicators/listed_in_registry"
         },
         "checkingSoftware": {
-          "name": "probe"
+          "name": "OEBFAIR"
         },
         "output": "true"
       },
@@ -330,7 +357,7 @@
           "@id": "https://w3id.org/everse/i/indicators/no_leaked_credentials"
         },
         "checkingSoftware": {
-          "name": "probe"
+          "name": "GitLeaks"
         },
         "output": "true"
       },
@@ -339,7 +366,7 @@
           "@id": "https://w3id.org/everse/i/indicators/persistent_and_unique_identifier"
         },
         "checkingSoftware": {
-          "name": "probe"
+          "name": "RSFC"
         },
         "output": "true"
       },
@@ -348,7 +375,7 @@
           "@id": "https://w3id.org/everse/i/indicators/requirements_specified"
         },
         "checkingSoftware": {
-          "name": "probe"
+          "name": "RSFC"
         },
         "output": "true"
       },
@@ -357,7 +384,7 @@
           "@id": "https://w3id.org/everse/i/indicators/software_has_citation"
         },
         "checkingSoftware": {
-          "name": "probe"
+          "name": "RSFC"
         },
         "output": "true"
       },
@@ -366,7 +393,7 @@
           "@id": "https://w3id.org/everse/i/indicators/software_has_documentation"
         },
         "checkingSoftware": {
-          "name": "probe"
+          "name": "RSFC"
         },
         "output": "true"
       },
@@ -375,7 +402,7 @@
           "@id": "https://w3id.org/everse/i/indicators/software_has_license"
         },
         "checkingSoftware": {
-          "name": "probe"
+          "name": "RSFC"
         },
         "output": "true"
       },
@@ -384,7 +411,7 @@
           "@id": "https://w3id.org/everse/i/indicators/software_has_license_for_file_types"
         },
         "checkingSoftware": {
-          "name": "probe"
+          "name": "HowFairIs"
         },
         "output": "true"
       },
@@ -393,7 +420,7 @@
           "@id": "https://w3id.org/everse/i/indicators/software_has_tests"
         },
         "checkingSoftware": {
-          "name": "probe"
+          "name": "RSFC"
         },
         "output": "true"
       },
@@ -402,7 +429,7 @@
           "@id": "https://w3id.org/everse/i/indicators/software_is_containerized"
         },
         "checkingSoftware": {
-          "name": "probe"
+          "name": "RSFC"
         },
         "output": "true"
       },
@@ -411,7 +438,7 @@
           "@id": "https://w3id.org/everse/i/indicators/uses_tool_for_warnings_and_mistakes"
         },
         "checkingSoftware": {
-          "name": "probe"
+          "name": "OpenSSF Scorecard"
         },
         "output": "true"
       },
@@ -420,7 +447,7 @@
           "@id": "https://w3id.org/everse/i/indicators/version_control_use"
         },
         "checkingSoftware": {
-          "name": "probe"
+          "name": "RSFC"
         },
         "output": "true"
       },
@@ -429,7 +456,106 @@
           "@id": "https://w3id.org/everse/i/indicators/versioning_standards_use"
         },
         "checkingSoftware": {
-          "name": "probe"
+          "name": "RSFC"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/software_has_license"
+        },
+        "checkingSoftware": {
+          "name": "OEBFAIR"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/persistent_and_unique_identifier"
+        },
+        "checkingSoftware": {
+          "name": "OEBFAIR"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/software_has_documentation"
+        },
+        "checkingSoftware": {
+          "name": "OEBFAIR"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/repository_workflows"
+        },
+        "checkingSoftware": {
+          "name": "RSFC"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/has_active_communication_channels"
+        },
+        "checkingSoftware": {
+          "name": "RSFC"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/has_published_package"
+        },
+        "checkingSoftware": {
+          "name": "OpenSSF Scorecard"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/has_no_binary_artifacts"
+        },
+        "checkingSoftware": {
+          "name": "OpenSSF Scorecard"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/no_critical_vulnerability"
+        },
+        "checkingSoftware": {
+          "name": "OpenSSF Scorecard"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/project_is_active"
+        },
+        "checkingSoftware": {
+          "name": "OpenSSF Scorecard"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/static_analysis_common_vulnerabilities"
+        },
+        "checkingSoftware": {
+          "name": "OpenSSF Scorecard"
+        },
+        "output": "true"
+      },
+      {
+        "assessesIndicator": {
+          "@id": "https://w3id.org/everse/i/indicators/uses_fuzzing"
+        },
+        "checkingSoftware": {
+          "name": "OpenSSF Scorecard"
         },
         "output": "true"
       }
@@ -475,5 +601,271 @@
       "has_children": false,
       "is_obsolete": false
     }
-  }
+  },
+  "fair_checker": [
+    {
+      "@id": "https://w3id.org/fairchecker/eval/probe0",
+      "@type": [
+        "https://w3id.org/ftr#TestResult"
+      ],
+      "http://www.w3.org/ns/prov#value": [
+        {
+          "@type": "http://www.w3.org/2001/XMLSchema#integer",
+          "@value": 2
+        }
+      ],
+      "https://w3id.org/ftr#assessmentTarget": [
+        {
+          "@id": "https://gitlab.com/probe/probe"
+        }
+      ],
+      "https://w3id.org/ftr#outputFromTest": [
+        {
+          "@id": "https://w3id.org/fairchecker/test/F1A"
+        }
+      ]
+    },
+    {
+      "@id": "https://w3id.org/fairchecker/eval/probe1",
+      "@type": [
+        "https://w3id.org/ftr#TestResult"
+      ],
+      "http://www.w3.org/ns/prov#value": [
+        {
+          "@type": "http://www.w3.org/2001/XMLSchema#integer",
+          "@value": 0
+        }
+      ],
+      "https://w3id.org/ftr#assessmentTarget": [
+        {
+          "@id": "https://gitlab.com/probe/probe"
+        }
+      ],
+      "https://w3id.org/ftr#outputFromTest": [
+        {
+          "@id": "https://w3id.org/fairchecker/test/F1B"
+        }
+      ]
+    },
+    {
+      "@id": "https://w3id.org/fairchecker/eval/probe2",
+      "@type": [
+        "https://w3id.org/ftr#TestResult"
+      ],
+      "http://www.w3.org/ns/prov#value": [
+        {
+          "@type": "http://www.w3.org/2001/XMLSchema#integer",
+          "@value": 1
+        }
+      ],
+      "https://w3id.org/ftr#assessmentTarget": [
+        {
+          "@id": "https://gitlab.com/probe/probe"
+        }
+      ],
+      "https://w3id.org/ftr#outputFromTest": [
+        {
+          "@id": "https://w3id.org/fairchecker/test/F2A"
+        }
+      ]
+    },
+    {
+      "@id": "https://w3id.org/fairchecker/eval/probe3",
+      "@type": [
+        "https://w3id.org/ftr#TestResult"
+      ],
+      "http://www.w3.org/ns/prov#value": [
+        {
+          "@type": "http://www.w3.org/2001/XMLSchema#integer",
+          "@value": 1
+        }
+      ],
+      "https://w3id.org/ftr#assessmentTarget": [
+        {
+          "@id": "https://gitlab.com/probe/probe"
+        }
+      ],
+      "https://w3id.org/ftr#outputFromTest": [
+        {
+          "@id": "https://w3id.org/fairchecker/test/F2B"
+        }
+      ]
+    },
+    {
+      "@id": "https://w3id.org/fairchecker/eval/probe4",
+      "@type": [
+        "https://w3id.org/ftr#TestResult"
+      ],
+      "http://www.w3.org/ns/prov#value": [
+        {
+          "@type": "http://www.w3.org/2001/XMLSchema#integer",
+          "@value": 2
+        }
+      ],
+      "https://w3id.org/ftr#assessmentTarget": [
+        {
+          "@id": "https://gitlab.com/probe/probe"
+        }
+      ],
+      "https://w3id.org/ftr#outputFromTest": [
+        {
+          "@id": "https://w3id.org/fairchecker/test/A11"
+        }
+      ]
+    },
+    {
+      "@id": "https://w3id.org/fairchecker/eval/probe5",
+      "@type": [
+        "https://w3id.org/ftr#TestResult"
+      ],
+      "http://www.w3.org/ns/prov#value": [
+        {
+          "@type": "http://www.w3.org/2001/XMLSchema#integer",
+          "@value": 0
+        }
+      ],
+      "https://w3id.org/ftr#assessmentTarget": [
+        {
+          "@id": "https://gitlab.com/probe/probe"
+        }
+      ],
+      "https://w3id.org/ftr#outputFromTest": [
+        {
+          "@id": "https://w3id.org/fairchecker/test/A12"
+        }
+      ]
+    },
+    {
+      "@id": "https://w3id.org/fairchecker/eval/probe6",
+      "@type": [
+        "https://w3id.org/ftr#TestResult"
+      ],
+      "http://www.w3.org/ns/prov#value": [
+        {
+          "@type": "http://www.w3.org/2001/XMLSchema#integer",
+          "@value": 1
+        }
+      ],
+      "https://w3id.org/ftr#assessmentTarget": [
+        {
+          "@id": "https://gitlab.com/probe/probe"
+        }
+      ],
+      "https://w3id.org/ftr#outputFromTest": [
+        {
+          "@id": "https://w3id.org/fairchecker/test/I1"
+        }
+      ]
+    },
+    {
+      "@id": "https://w3id.org/fairchecker/eval/probe7",
+      "@type": [
+        "https://w3id.org/ftr#TestResult"
+      ],
+      "http://www.w3.org/ns/prov#value": [
+        {
+          "@type": "http://www.w3.org/2001/XMLSchema#integer",
+          "@value": 1
+        }
+      ],
+      "https://w3id.org/ftr#assessmentTarget": [
+        {
+          "@id": "https://gitlab.com/probe/probe"
+        }
+      ],
+      "https://w3id.org/ftr#outputFromTest": [
+        {
+          "@id": "https://w3id.org/fairchecker/test/I2"
+        }
+      ]
+    },
+    {
+      "@id": "https://w3id.org/fairchecker/eval/probe8",
+      "@type": [
+        "https://w3id.org/ftr#TestResult"
+      ],
+      "http://www.w3.org/ns/prov#value": [
+        {
+          "@type": "http://www.w3.org/2001/XMLSchema#integer",
+          "@value": 0
+        }
+      ],
+      "https://w3id.org/ftr#assessmentTarget": [
+        {
+          "@id": "https://gitlab.com/probe/probe"
+        }
+      ],
+      "https://w3id.org/ftr#outputFromTest": [
+        {
+          "@id": "https://w3id.org/fairchecker/test/I3"
+        }
+      ]
+    },
+    {
+      "@id": "https://w3id.org/fairchecker/eval/probe9",
+      "@type": [
+        "https://w3id.org/ftr#TestResult"
+      ],
+      "http://www.w3.org/ns/prov#value": [
+        {
+          "@type": "http://www.w3.org/2001/XMLSchema#integer",
+          "@value": 2
+        }
+      ],
+      "https://w3id.org/ftr#assessmentTarget": [
+        {
+          "@id": "https://gitlab.com/probe/probe"
+        }
+      ],
+      "https://w3id.org/ftr#outputFromTest": [
+        {
+          "@id": "https://w3id.org/fairchecker/test/R11"
+        }
+      ]
+    },
+    {
+      "@id": "https://w3id.org/fairchecker/eval/probe10",
+      "@type": [
+        "https://w3id.org/ftr#TestResult"
+      ],
+      "http://www.w3.org/ns/prov#value": [
+        {
+          "@type": "http://www.w3.org/2001/XMLSchema#integer",
+          "@value": 0
+        }
+      ],
+      "https://w3id.org/ftr#assessmentTarget": [
+        {
+          "@id": "https://gitlab.com/probe/probe"
+        }
+      ],
+      "https://w3id.org/ftr#outputFromTest": [
+        {
+          "@id": "https://w3id.org/fairchecker/test/R12"
+        }
+      ]
+    },
+    {
+      "@id": "https://w3id.org/fairchecker/eval/probe11",
+      "@type": [
+        "https://w3id.org/ftr#TestResult"
+      ],
+      "http://www.w3.org/ns/prov#value": [
+        {
+          "@type": "http://www.w3.org/2001/XMLSchema#integer",
+          "@value": 1
+        }
+      ],
+      "https://w3id.org/ftr#assessmentTarget": [
+        {
+          "@id": "https://gitlab.com/probe/probe"
+        }
+      ],
+      "https://w3id.org/ftr#outputFromTest": [
+        {
+          "@id": "https://w3id.org/fairchecker/test/R13"
+        }
+      ]
+    }
+  ]
 }

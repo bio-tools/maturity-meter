@@ -54,6 +54,29 @@ def placeholder_reconcile(values: list[float | None]) -> float | None:
     return mean(available) if available else None
 
 
+@role("reconciliation")
+def placeholder_combine(values: list[float | None]) -> float | None:
+    """Placeholder combination of a metric's aspects into the metric's value.
+
+    Used when a metric covers several distinct questions (aspects) about one
+    concept, e.g. licensing: is a licence declared, is it open source, is it
+    machine-readable. Unlike :func:`placeholder_reconcile`, the values are
+    different quantities, not one quantity from several sources.
+
+    Parameters
+    ----------
+    values : list[float | None]
+        The value of each aspect; None where an aspect could not be assessed.
+
+    Returns
+    -------
+    float | None
+        The mean of the assessed aspects, or None if none was assessed.
+    """
+    available = [v for v in values if v is not None]
+    return mean(available) if available else None
+
+
 @role("aggregation")
 def placeholder_dimension_score(metrics: list[MetricResult]) -> float | None:
     """Placeholder dimension score: the mean of the assessed metrics.

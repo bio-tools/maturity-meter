@@ -67,15 +67,29 @@ def is_test_path(path: str) -> bool:
     )
 
 
-def is_distribution_file(path: str) -> bool:
-    """A Dockerfile/Containerfile or a conda recipe (``meta.yaml``)."""
-    name = PurePosixPath(path.lower()).name
-    return name.startswith(("dockerfile", "containerfile")) or name == "meta.yaml"
-
-
 def is_bioconda_file(name: str) -> bool:
     return name.startswith("bioconda_") and name.endswith(".yaml")
 
 
-def is_biocontainers_file(name: str) -> bool:
-    return name.endswith("biocontainers.yaml")
+# Continuous integration configuration (paths relative to the repository root).
+CI_CONFIG_FILES = {
+    ".gitlab-ci.yml", ".travis.yml", "azure-pipelines.yml", "jenkinsfile",
+    "bitbucket-pipelines.yml", "appveyor.yml", ".appveyor.yml",
+}  # fmt: skip
+CI_CONFIG_DIRS = (".github/workflows/", ".circleci/", ".woodpecker/")
+
+# Python packaging files (a package can be built from the repository).
+PYTHON_PACKAGING_FILES = {"pyproject.toml", "setup.py", "setup.cfg"}
+
+
+def is_ci_config(path: str) -> bool:
+    """A continuous integration configuration file."""
+    return path in CI_CONFIG_FILES or path.startswith(CI_CONFIG_DIRS)
+
+
+def is_workflow_file(path: str) -> bool:
+    """A workflow-manager file: Snakemake, Nextflow, CWL or WDL."""
+    name = PurePosixPath(path).name
+    return name in ("snakefile", "nextflow.config") or name.endswith(
+        (".smk", ".nf", ".cwl", ".wdl")
+    )

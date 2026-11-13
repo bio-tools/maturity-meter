@@ -1,13 +1,15 @@
-"""FAIRness metrics on licensing, copyright and attribution."""
+"""FAIRness metric on licensing: every licence-related item, in one metric."""
 
 from typing import Any
 
 from maturity_meter.components.utils.checks import (
+    Aspect,
+    aspect_metric,
     resqui_verdict,
-    verdict_metric,
 )
 from maturity_meter.components.utils.sources import (
     biotools_has,
+    fair_checker_score,
     file_name,
     has_file,
     openebench_metric,
@@ -25,6 +27,11 @@ OSI_LICENSES = {
     "lgpl-3.0", "lppl-1.3c", "mit", "mit-0", "mpl-1.1", "mpl-2.0", "ms-pl", "ms-rl",
     "ncsa", "osl-3.0", "postgresql", "unlicense", "upl-1.0", "zlib",
 }  # fmt: skip
+
+# resqui plugins whose software_has_license verdict is used. HowFairIs is left
+# out: it reported "no licence" for most repositories that have a LICENSE (or
+# LICENSE.md) file in the root, the very files it looks for.
+LICENSE_CHECK_PLUGINS = {"RSFC", "OEBFAIR"}
 
 
 def _spdx(value: Any) -> str | None:
@@ -45,11 +52,22 @@ def _osi(value: Any) -> float | None:
     return None if spdx is None else float(spdx in OSI_LICENSES)
 
 
-def license_declaration(data: IngestedData) -> MetricResult:
-    """Whether the software declares a licence.
+def licensing(data: IngestedData) -> MetricResult:
+    """How well the software's licensing is stated: every licence item.
 
-    Sources: the GitHub/GitLab licence, a LICENSE/COPYING file, the bio.tools
-    and OpenEBench licences, and resqui's ``software_has_license`` check.
+    Aspects and their sources:
+
+    - declared: the GitHub/GitLab licence, a LICENSE/COPYING file, the
+      bio.tools and OpenEBench licences, OpenEBench's source-licence check,
+      and the RSFC and OEBFAIR ``software_has_license`` checks;
+    - open source: OpenEBench's OSI and open-source checks, and the
+      GitHub/GitLab and bio.tools licences looked up in a list of common
+      OSI-approved licences;
+    - machine-readable: FAIR-Checker's licence-metadata test (R1.1) on the
+      repository page, and a licence in the bio.tools entry;
+    - per file: a REUSE setup (``REUSE.toml``, ``.reuse/dep5``, a
+      ``LICENSES/`` folder) and HowFairIs's
+      ``software_has_license_for_file_types`` check.
 
     Parameters
     ----------
@@ -59,121 +77,70 @@ def license_declaration(data: IngestedData) -> MetricResult:
     Returns
     -------
     MetricResult
-        The reconciled verdict, or ``value=None`` if no source could check.
+        The aspects combined, or ``value=None`` if no source could check.
     """
     repo = repo_record(data)
-    return verdict_metric(
-        "license_declaration",
+    biotools_license = (data.biotools or {}).get("license")
+    return aspect_metric(
+        "licensing",
         {
-            "repository licence": None
-            if repo is None
-            else verdict(repo.get("license")),
-            "LICENSE file": has_file(
-                data,
-                lambda f: file_name(f).startswith(("license", "licence", "copying")),
+            "declared": Aspect(
+                {
+                    "repository licence": None
+                    if repo is None
+                    else verdict(repo.get("license")),
+                    "LICENSE file": has_file(
+                        data,
+                        lambda f: file_name(f).startswith(
+                            ("license", "licence", "copying")
+                        ),
+                    ),
+                    "bio.tools": biotools_has(data, "license"),
+                    "OpenEBench": openebench_tool_has(data, "license"),
+                    "OpenEBench source licence": verdict(
+                        openebench_metric(data, "distribution.sourcecode.license")
+                    ),
+                    "RSFC/OEBFAIR": resqui_verdict(
+                        data, "software_has_license", LICENSE_CHECK_PLUGINS
+                    ),
+                },
+                "Add a LICENSE file with an open-source licence.",
             ),
-            "bio.tools": biotools_has(data, "license"),
-            "OpenEBench": openebench_tool_has(data, "license"),
-            "resqui check": resqui_verdict(data, "software_has_license"),
-        },
-        suggestion="Add a LICENSE file with an open-source licence.",
-    )
-
-
-def per_file_licensing(data: IngestedData) -> MetricResult:
-    """Whether individual files carry licence information (e.g. REUSE).
-
-    Sources: a REUSE setup in the repository (``REUSE.toml``, ``.reuse/dep5``
-    or a ``LICENSES/`` folder) and resqui's
-    ``software_has_license_for_file_types`` check.
-
-    Parameters
-    ----------
-    data : IngestedData
-        Ingested data.
-
-    Returns
-    -------
-    MetricResult
-        The reconciled verdict, or ``value=None`` if no source could check.
-    """
-    return verdict_metric(
-        "per_file_licensing",
-        {
-            "REUSE setup": has_file(
-                data,
-                lambda f: (
-                    f in ("reuse.toml", ".reuse/dep5") or f.startswith("licenses/")
-                ),
+            "open source": Aspect(
+                {
+                    "OpenEBench OSI": verdict(
+                        openebench_metric(data, "project.license.osi")
+                    ),
+                    "OpenEBench open source": verdict(
+                        openebench_metric(data, "project.license.open_source")
+                    ),
+                    "repository licence": _osi((repo or {}).get("license")),
+                    "bio.tools licence": _osi(biotools_license),
+                },
+                "Use an OSI-approved open-source licence.",
             ),
-            "resqui check": resqui_verdict(data, "software_has_license_for_file_types"),
-        },
-        suggestion="Add SPDX licence headers to the files (e.g. with REUSE).",
-    )
-
-
-def open_source_license(data: IngestedData) -> MetricResult:
-    """Whether the licence is an OSI-approved open-source licence.
-
-    Sources: OpenEBench's OSI check, and the GitHub/GitLab and bio.tools
-    licences looked up in a list of common OSI-approved licences.
-
-    Parameters
-    ----------
-    data : IngestedData
-        Ingested data.
-
-    Returns
-    -------
-    MetricResult
-        The reconciled verdict, or ``value=None`` if no licence is known.
-    """
-    repo = repo_record(data) or {}
-    return verdict_metric(
-        "open_source_license",
-        {
-            "OpenEBench": verdict(openebench_metric(data, "project.license.osi")),
-            "repository licence": _osi(repo.get("license")),
-            "bio.tools licence": _osi((data.biotools or {}).get("license")),
-        },
-        yes="OSI-approved",
-        no="not OSI-approved",
-        suggestion="Use an OSI-approved open-source licence.",
-        missing="No licence known.",
-    )
-
-
-def copyright_and_attribution(data: IngestedData) -> MetricResult:
-    """Whether copyright and credits (who made it) are stated.
-
-    Sources: OpenEBench's website copyright check, credits in bio.tools and
-    OpenEBench, and an AUTHORS/CONTRIBUTORS/CITATION file.
-
-    Parameters
-    ----------
-    data : IngestedData
-        Ingested data.
-
-    Returns
-    -------
-    MetricResult
-        The reconciled verdict, or ``value=None`` if no source could check.
-    """
-    return verdict_metric(
-        "copyright_and_attribution",
-        {
-            "website copyright (OpenEBench)": verdict(
-                openebench_metric(data, "project.website.copyright")
+            "machine-readable": Aspect(
+                {
+                    "FAIR-Checker R1.1": fair_checker_score(data, "R11"),
+                    "bio.tools": biotools_has(data, "license"),
+                },
+                "State the licence in machine-readable metadata "
+                "(e.g. a bio.tools entry or codemeta.json).",
             ),
-            "credits (bio.tools)": biotools_has(data, "credit"),
-            "credits (OpenEBench)": openebench_tool_has(data, "credits"),
-            "AUTHORS/CITATION file": has_file(
-                data,
-                lambda f: (
-                    file_name(f).startswith(("authors", "contributors", "credits"))
-                    or file_name(f) == "citation.cff"
-                ),
+            "per file": Aspect(
+                {
+                    "REUSE setup": has_file(
+                        data,
+                        lambda f: (
+                            f in ("reuse.toml", ".reuse/dep5")
+                            or f.startswith("licenses/")
+                        ),
+                    ),
+                    "HowFairIs": resqui_verdict(
+                        data, "software_has_license_for_file_types"
+                    ),
+                },
+                "Add SPDX licence headers to the files (e.g. with REUSE).",
             ),
         },
-        suggestion="State the authors, funders and copyright (e.g. an AUTHORS file).",
     )

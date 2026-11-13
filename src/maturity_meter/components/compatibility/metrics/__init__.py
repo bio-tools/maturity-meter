@@ -1,29 +1,23 @@
 """Compatibility metrics.
 
 Each function computes one metric from the ingested data and returns its
-:class:`MetricResult`. When several sources measure the same thing, they are
-combined with :func:`placeholder_reconcile`. ``dependency_management`` is
-shared with the security dimension.
+:class:`MetricResult`. ``containerization`` is shared with FAIRness and
+``dependency_management`` with Security.
 """
 
-from maturity_meter.components.shared.metrics import dependency_management
-
-from .distribution import (
-    available_in_galaxy,
-    bioconda_package,
-    biocontainer_image,
-    debian_med_package,
-    has_distribution_support,
+from maturity_meter.components.shared import (
+    containerization,
+    dependency_management,
 )
+
+from .distribution import package_availability, workflow_integration
 from .formats import input_formats, output_formats
 
 __all__ = [
-    "available_in_galaxy",
-    "bioconda_package",
-    "biocontainer_image",
-    "debian_med_package",
+    "containerization",
     "dependency_management",
-    "has_distribution_support",
     "input_formats",
     "output_formats",
+    "package_availability",
+    "workflow_integration",
 ]

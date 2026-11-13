@@ -3,8 +3,8 @@ from maturity_meter.models import DimensionResult, IngestedData
 
 from .metrics import (
     avg_issue_close_time_days,
-    days_since_last_commit,
-    has_contribution_guidelines,
+    contribution_and_governance,
+    development_activity,
     inverse_simpson_index,
     num_open_issues,
 )
@@ -12,10 +12,10 @@ from .metrics import (
 
 def eval(data: IngestedData) -> DimensionResult:
     metrics = [
+        development_activity(data),
         avg_issue_close_time_days(data),
         num_open_issues(data),
-        days_since_last_commit(data),
         inverse_simpson_index(data),
-        has_contribution_guidelines(data),
+        contribution_and_governance(data),
     ]
     return DimensionResult(value=placeholder_dimension_score(metrics), metrics=metrics)
