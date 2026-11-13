@@ -7,22 +7,31 @@ from maturity_meter.components.utils.checks import (
     aspect_metric,
     resqui_verdict,
 )
-from maturity_meter.components.utils.scaling import placeholder_scale
+from maturity_meter.components.utils.scaling import recency_scale
 from maturity_meter.components.utils.sources import parse_time, repo_record
 from maturity_meter.models import IngestedData, MetricResult
 
-LAST_COMMIT_CAP_DAYS = 365.0
+# OpenSSF Scorecard's Maintained check looks at the last 90 days, so activity
+# within them scores 1. One year without commits is the usual threshold for a
+# dormant project (Khondhu et al. 2013; Coelho & Valente 2017), so each
+# further year of inactivity halves the score.
+ACTIVE_WITHIN_DAYS = 90.0
+INACTIVITY_HALF_LIFE_DAYS = 365.0
 
 
 def _recency(data: IngestedData) -> tuple[float | None, str]:
-    """Score of the last push (1 for today, 0 from the cap), and a label."""
+    """Score of the last push (see :func:`recency_scale`), and a label."""
     repo = repo_record(data) or {}
     last = parse_time(repo.get("pushed_at") or repo.get("last_activity_at"))
     if last is None:
         return None, "last activity"
     days = max(0.0, (datetime.now(UTC) - last).total_seconds() / 86400)
     return (
-        placeholder_scale(days, cap=LAST_COMMIT_CAP_DAYS, invert=True),
+        recency_scale(
+            days,
+            grace_days=ACTIVE_WITHIN_DAYS,
+            half_life_days=INACTIVITY_HALF_LIFE_DAYS,
+        ),
         f"GitHub/GitLab ({days:.0f} days ago)",
     )
 
@@ -33,7 +42,8 @@ def development_activity(data: IngestedData) -> MetricResult:
     Aspects and their sources:
 
     - recent activity: days since the GitHub push or GitLab project activity
-      (1 for today, 0 from LAST_COMMIT_CAP_DAYS; lower is better);
+      (1 within ACTIVE_WITHIN_DAYS, then halving every
+      INACTIVITY_HALF_LIFE_DAYS; lower is better);
     - active project: OpenSSF Scorecard's ``project_is_active`` check (recent
       commits or issue activity).
 

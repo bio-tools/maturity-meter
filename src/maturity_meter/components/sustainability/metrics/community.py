@@ -1,11 +1,7 @@
 """Sustainability metrics on the contributor community."""
 
-from maturity_meter.components.utils.scaling import (
-    placeholder_scale,
-)
+from maturity_meter.components.utils.scaling import effective_number_scale
 from maturity_meter.models import IngestedData, MetricResult
-
-SIMPSON_CAP = 4.0
 
 
 def _is_bot(name: str) -> bool:
@@ -28,8 +24,9 @@ def inverse_simpson_index(data: IngestedData) -> MetricResult:
     Returns
     -------
     MetricResult
-        The scored metric (scaled up to SIMPSON_CAP), or ``value=None``
-        without contributors.
+        The scored metric, ``1 - 1/index`` (see
+        :func:`effective_number_scale`): 0 for a single contributor, 0.5 for
+        two equal ones; or ``value=None`` without contributors.
     """
     contributors = data.repository.get("contributors") or []
     humans = [
@@ -46,10 +43,10 @@ def inverse_simpson_index(data: IngestedData) -> MetricResult:
     bots = len(contributors) - len(humans)
     return MetricResult(
         name="inverse_simpson_index",
-        value=placeholder_scale(index, cap=SIMPSON_CAP),
+        value=effective_number_scale(index),
         note=(
             f"Index {index:.2f} over {len(humans)} contributor(s)"
             + (f", {bots} bot(s) excluded" if bots else "")
-            + f" (scores 1 from {SIMPSON_CAP:g})."
+            + "; scored as 1 - 1/index."
         ),
     )

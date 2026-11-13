@@ -10,12 +10,12 @@ from maturity_meter.components.shared import contribution_and_governance
 
 from .activity import development_activity
 from .community import inverse_simpson_index
-from .issues import avg_issue_close_time_days, num_open_issues
+from .issues import issue_close_time, resolved_issue_share
 
 __all__ = [
-    "avg_issue_close_time_days",
     "contribution_and_governance",
     "development_activity",
     "inverse_simpson_index",
-    "num_open_issues",
+    "issue_close_time",
+    "resolved_issue_share",
 ]

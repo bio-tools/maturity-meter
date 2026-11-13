@@ -15,7 +15,6 @@ from .scaling import (
     placeholder_combine,
     placeholder_dimension_score,
     placeholder_reconcile,
-    placeholder_scale,
 )
 
 __all__ = [
@@ -26,7 +25,6 @@ __all__ = [
     "placeholder_combine",
     "placeholder_dimension_score",
     "placeholder_reconcile",
-    "placeholder_scale",
     "resqui_verdict",
     "verdict_metric",
 ]

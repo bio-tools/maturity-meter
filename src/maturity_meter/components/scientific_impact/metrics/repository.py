@@ -1,21 +1,19 @@
 """Scientific impact metrics from the repository: stars and forks."""
 
-from maturity_meter.components.utils.scaling import (
-    placeholder_scale,
-)
+from maturity_meter.components.utils.scaling import log_scale
 from maturity_meter.components.utils.sources import (
     repo_record,
 )
 from maturity_meter.models import IngestedData, MetricResult
 
-STAR_CAP = 50.0
-
-
-FORK_CAP = 25.0
+# Counts that score 1 on the log scale (see log_scale): about the top 5% of
+# bio.tools-registered GitHub repositories (median: 6 stars, 2 forks).
+STAR_REFERENCE = 100.0
+FORK_REFERENCE = 25.0
 
 
 def star_count(data: IngestedData) -> MetricResult:
-    """Repository stars, scaled up to STAR_CAP.
+    """Repository stars, on a log scale up to STAR_REFERENCE.
 
     Parameters
     ----------
@@ -36,13 +34,13 @@ def star_count(data: IngestedData) -> MetricResult:
         )
     return MetricResult(
         name="star_count",
-        value=placeholder_scale(stars, cap=STAR_CAP),
-        note=f"{stars} stars (scores 1 from {STAR_CAP:g}).",
+        value=log_scale(stars, reference=STAR_REFERENCE),
+        note=f"{stars} stars (log scale; scores 1 from {STAR_REFERENCE:g}).",
     )
 
 
 def fork_count(data: IngestedData) -> MetricResult:
-    """Repository forks, scaled up to FORK_CAP.
+    """Repository forks, on a log scale up to FORK_REFERENCE.
 
     Parameters
     ----------
@@ -61,6 +59,6 @@ def fork_count(data: IngestedData) -> MetricResult:
         )
     return MetricResult(
         name="fork_count",
-        value=placeholder_scale(forks, cap=FORK_CAP),
-        note=f"{forks} forks (scores 1 from {FORK_CAP:g}).",
+        value=log_scale(forks, reference=FORK_REFERENCE),
+        note=f"{forks} forks (log scale; scores 1 from {FORK_REFERENCE:g}).",
     )

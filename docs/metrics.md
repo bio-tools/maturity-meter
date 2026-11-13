@@ -11,14 +11,16 @@ concept. Licensing, for example, asks whether a licence is declared, whether
 it is open source, whether it is machine-readable and whether individual files
 carry one. Each aspect is answered by every source that can:
 
+- each source's raw value is first **scaled** onto [0, 1] (see
+  [Scaling](#scaling) below; yes/no answers are already 0 or 1);
 - the sources answering one aspect are **reconciled** with
   `placeholder_reconcile`;
 - the aspects are **combined** into the metric with `placeholder_combine`;
 - the metrics are **aggregated** into the dimension with
   `placeholder_dimension_score`.
 
-All three are placeholders (currently means), to be replaced once the scoring
-is decided. A source without an answer, or an aspect no source could answer,
+Reconciliation, combination and aggregation are placeholders (currently
+means), to be replaced once they are decided; the scaling is final. A source without an answer, or an aspect no source could answer,
 is left out rather than counted as a "no". Metrics with a single aspect simply
 reconcile their sources. Each metric's note lists every aspect's answer and
 every source's answer to it, so disagreements are visible; its suggestions are
@@ -102,10 +104,31 @@ counts in both.
 | Metric | Aspects: sources |
 |---|---|
 | `development_activity` | **recent activity**: days since the last push or project activity · **active project**: OpenSSF Scorecard |
-| `avg_issue_close_time_days` | GitHub/GitLab closed issues, OpenEBench resolution time |
-| `num_open_issues` | GitHub/GitLab |
+| `issue_close_time` | median close time of the GitHub/GitLab closed issues, OpenEBench resolution time |
+| `resolved_issue_share` | closed issues out of all reported issues (GitHub/GitLab) |
 | `inverse_simpson_index` | contributor diversity of commit shares, bots excluded |
 | `contribution_and_governance` | shared with FAIRness |
+
+## Scaling
+
+Every numeric field is mapped onto [0, 1] before it is reconciled with other
+sources. The transformations follow the literature or established thresholds;
+the ingested data of about 750 bio.tools-registered tools only places the
+reference points (e.g. at roughly the top 5-10%).
+
+| Field | Transformation | Reasoning |
+|---|---|---|
+| Stars, forks | `log(1 + x) / log(1 + ref)`, capped at 1; ref 100 stars, 25 forks | Counts are heavily skewed (median 6 stars, maximum 884); a log scale is the standard way to compare such counts ([Thelwall 2017](https://arxiv.org/abs/1510.08877)). The references are about the top 5%. |
+| Citation counts | same, ref 100 citations, per source before reconciling | Citation counts are lognormal ([Thelwall 2017](https://arxiv.org/abs/1510.08877)); 100 is about the top 10% of these tools' publications. |
+| FWCI | `x / (1 + x)` | FWCI 1.0 is the world average of the field and year, so it scores 0.5; the score saturates for the lognormal tail of FWCI values. |
+| Days since the last activity | 1 within 90 days, then halves every further 365 days | OpenSSF Scorecard's Maintained check looks at the last 90 days; one year without commits is the usual threshold for a dormant project ([Coelho & Valente 2017](https://arxiv.org/abs/1707.02327)). |
+| Issue close time | median of the closed issues, then `1 / (1 + days / 30)` | CHAOSS recommends the [median close time](https://chaoss.community/metric-issue-resolution-duration/) over the mean; it gives no benchmark, so half the score is at one month, near the median of these tools (46 days). |
+| Open issues | share of reported issues that are closed | The number of open issues grows with use, not neglect; relative to all reported issues it shows whether the backlog is handled. |
+| Contributor diversity (inverse Simpson index D) | `1 - 1/D` (Gini-Simpson index) | The probability that two random commits are by different people: 0 for one developer, 0.5 for two equal ones. |
+| Average cyclomatic complexity | 1 at 1, 0 at 10, linear | 10 per function is McCabe's and NIST's recommended maximum; an average at that maximum scores 0. |
+| Duplicated code (%) | 1 up to 3%, 0 at 100%, linear | SonarQube's recommended quality gate ("Sonar way") allows at most [3% duplicated lines](https://docs.sonarsource.com/sonarqube-server/2025.3/quality-standards-administration/managing-quality-gates/introduction-to-quality-gates). |
+| Share of EDAM leaf formats | used as is | Already a share in [0, 1]. |
+| FAIR-Checker scores | NO 0, WEAK 0.5, STRONG 1 | FAIR-Checker's own three levels. |
 
 ## Ingested items that are not used
 
