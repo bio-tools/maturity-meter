@@ -39,6 +39,9 @@ poetry run maturity-meter evaluate https://github.com/owner/repo
 ```
 
 The result is printed as JSON; add `-o result.json` to save it. Use
+`maturity-meter evaluate --biotools-id example` to discover the repository
+and publication DOIs from bio.tools. The `batch --ids` option accepts a text
+file with one bio.tools ID per line. Use
 `--save-data data.json` to save the fetched data, and `--data data.json` to
 reuse it later; missing or null sources are fetched again.
 `maturity-meter lineage data.json -o lineage.json` records, as JSON, which

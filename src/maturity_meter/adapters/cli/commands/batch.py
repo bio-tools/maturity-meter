@@ -16,6 +16,7 @@ from maturity_meter.services.batch import (
     BatchSummary,
     evaluate_batch,
     read_csv,
+    read_ids,
 )
 
 
@@ -75,7 +76,7 @@ def command(
         typer.Argument(
             exists=True,
             dir_okay=False,
-            help="bio.tools CSV with biotoolsID, homepage and dois columns.",
+            help="bio.tools CSV, or a text file of IDs with --ids.",
         ),
     ],
     output_dir: Annotated[
@@ -119,10 +120,14 @@ def command(
         bool,
         typer.Option("--dry-run", help="Validate and list rows without evaluating."),
     ] = False,
+    ids: Annotated[
+        bool,
+        typer.Option("--ids", help="Read one bio.tools ID per line instead of CSV."),
+    ] = False,
 ) -> None:
     """Evaluate every tool in a bio.tools CSV, saving their data and results."""
     try:
-        rows = read_csv(csv_file)
+        rows = read_ids(csv_file) if ids else read_csv(csv_file)
     except (OSError, csv.Error, ValueError) as error:
         typer.echo(f"Error: {error}", err=True)
         raise typer.Exit(code=1) from error

@@ -84,7 +84,9 @@ class GitHubIngestor(Ingestor):
 
     async def _get(self, path: str, params: dict[str, Any] | None = None) -> Any:
         url = f"{self.api_base}/repos/{self.owner}/{self.repo}{path}"
-        return await get_json(url, params=params, headers=self._headers())
+        return await get_json(
+            url, params=params, headers=self._headers(), follow_redirects=True
+        )
 
     async def _get_optional(
         self,
@@ -188,6 +190,12 @@ class GitHubIngestor(Ingestor):
             Raw JSON for the repository from GET /repos/{owner}/{repo}.
         """
         data: dict[str, Any] = await self._get("")
+        # Registry URLs can point to a repository's old owner or name.
+        full_name = data.get("full_name")
+        if isinstance(full_name, str):
+            owner, _, repo = full_name.partition("/")
+            if owner and repo:
+                self.owner, self.repo = owner, repo
         logger.info(f"Ingested data for {self.owner}/{self.repo} successfully")
         return data
 

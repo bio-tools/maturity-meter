@@ -38,7 +38,6 @@ from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
-from urllib.parse import urlsplit
 
 import httpx
 from pydantic import ValidationError
@@ -48,8 +47,10 @@ from maturity_meter.external.http import get_json, shared_client
 from maturity_meter.external.ingestors.resqui import plugin_count, shared_limit
 from maturity_meter.logging_config import LOG_FORMAT
 from maturity_meter.models import EvaluationRequest, IngestedData
+from maturity_meter.services.biotools_resolution import resolve_biotools
 from maturity_meter.services.ingestion import ingest
 from maturity_meter.services.processing import score
+from maturity_meter.services.repository_urls import SkippedURL, repository_url
 
 logger = logging.getLogger(__name__)
 
@@ -58,10 +59,6 @@ logger = logging.getLogger(__name__)
 GITHUB_RESERVE = 500
 REQUIRED_COLUMNS = frozenset({"biotoolsID", "homepage", "dois"})
 _DOI_PREFIX = re.compile(r"^(?:https?://(?:dx\.)?doi\.org/|doi:)", re.IGNORECASE)
-
-
-class SkippedURL(ValueError):
-    """The homepage points inside a repository instead of to its root."""
 
 
 @dataclass(frozen=True)
@@ -80,12 +77,12 @@ class BatchItem:
 
     row: int
     biotools_id: str
-    request: EvaluationRequest
+    request: EvaluationRequest | None
 
     @property
     def stem(self) -> str:
         """File name stem shared by the tool's data and log files."""
-        return f"{self.row:04d}-{self.biotools_id}"
+        return self.biotools_id
 
 
 @dataclass(frozen=True)
@@ -168,49 +165,6 @@ class BatchSummary:
     failed: int = 0
 
 
-def repository_url(url: str) -> str:
-    """Return ``url`` if it is the root of a GitHub or GitLab repository.
-
-    Parameters
-    ----------
-    url : str
-        Homepage from the CSV.
-
-    Returns
-    -------
-    str
-        The URL, stripped.
-
-    Raises
-    ------
-    SkippedURL
-        If the URL points inside a repository (e.g. its releases); the
-        enclosing repository is not assumed to be the right one.
-    ValueError
-        If the URL is not a GitHub or gitlab.com repository URL.
-    """
-    parsed = urlsplit(url.strip())
-    host = (parsed.hostname or "").lower().removeprefix("www.")
-    parts = parsed.path.strip("/").split("/")
-    if (
-        parsed.scheme not in {"http", "https"}
-        or host not in {"github.com", "gitlab.com"}
-        or parsed.username
-        or parsed.password
-        or parsed.port
-        or parsed.query
-        or parsed.fragment
-        or any(not part for part in parts)
-        or len(parts) < 2
-    ):
-        raise ValueError(f"not a GitHub or GitLab repository URL: {url!r}")
-    if host == "github.com" and len(parts) != 2:
-        raise SkippedURL(f"GitHub URL has a path beyond the repository: {url!r}")
-    if host == "gitlab.com" and "-" in parts:
-        raise SkippedURL(f"GitLab URL points inside a repository: {url!r}")
-    return url.strip()
-
-
 def parse_row(row_number: int, row: dict[str, str | None]) -> BatchItem:
     """Validate one CSV row and turn it into a batch item.
 
@@ -285,6 +239,32 @@ def read_csv(path: Path) -> list[BatchRow]:
             except ValueError as error:
                 rows.append(BatchRow(row_number, error=str(error)))
         return rows
+
+
+def read_ids(path: Path) -> list[BatchRow]:
+    """Read one bio.tools ID per line, preserving line numbers for messages."""
+    rows = []
+    seen: set[str] = set()
+    with path.open(encoding="utf-8-sig") as file:
+        for line_number, line in enumerate(file, 1):
+            identifier = line.strip()
+            if not identifier:
+                continue
+            try:
+                identifier = EvaluationRequest.normalize_biotools_id(identifier) or ""
+                if not identifier:
+                    raise ValueError("A bio.tools ID is required")
+                if identifier.casefold() in seen:
+                    raise ValueError(f"duplicate bio.tools ID: {identifier!r}")
+                seen.add(identifier.casefold())
+                rows.append(
+                    BatchRow(line_number, item=BatchItem(line_number, identifier, None))
+                )
+            except ValueError as error:
+                rows.append(BatchRow(line_number, error=str(error)))
+    if not rows:
+        raise ValueError("ID file contains no bio.tools IDs")
+    return rows
 
 
 # The log file of the tool whose task is running, if any.
@@ -406,7 +386,7 @@ async def evaluate_batch(
 ) -> BatchSummary:
     """Evaluate the tools in ``rows``, saving their data and results.
 
-    Each tool's ingested data is saved to ``output_dir/raw/<row>-<bio.tools
+    Each tool's ingested data is saved to ``output_dir/raw/<bio.tools
     ID>.json`` (reusable with ``maturity-meter evaluate --data``), its scored
     result to ``output_dir/results/`` under the same name, and its log to
     ``output_dir/logs/``. A tool with a saved data file is not fetched again:
@@ -444,8 +424,16 @@ async def evaluate_batch(
     summary = BatchSummary()
     raw_dir = output_dir / "raw"
     results_dir, log_dir = output_dir / "results", output_dir / "logs"
-    saved: list[BatchItem] = []
-    to_fetch: list[tuple[BatchItem, bool]] = []  # (item, has saved data)
+    saved: list[tuple[BatchItem, Path]] = []
+    to_fetch: list[tuple[BatchItem, Path | None]] = []
+    existing: dict[str, set[Path]] = {}
+    if raw_dir.exists():
+        for path in raw_dir.glob("*.json"):
+            existing.setdefault(path.stem.casefold(), set()).add(path)
+            legacy = re.fullmatch(r"\d+-(.+)", path.stem)
+            if legacy:
+                existing.setdefault(legacy.group(1).casefold(), set()).add(path)
+    seen: set[str] = set()
     for row in rows:
         if row.error is not None:
             summary.failed += 1
@@ -455,8 +443,52 @@ async def evaluate_batch(
             report(BatchEvent("skip_url", row.row, message=row.skipped))
         elif row.item is not None:
             item = row.item
-            has_saved = (raw_dir / f"{item.stem}.json").exists()
+            key = item.biotools_id.casefold()
+            if key in seen:
+                summary.failed += 1
+                report(
+                    BatchEvent(
+                        "invalid",
+                        row.row,
+                        message=f"duplicate bio.tools ID: {item.biotools_id!r}",
+                    )
+                )
+                continue
+            seen.add(key)
+            matches = existing.get(key, set())
+            if len(matches) > 1:
+                # A valid ID can itself begin with digits and a hyphen.
+                for path in list(matches):
+                    if path.stem.casefold() == key:
+                        continue
+                    try:
+                        identifier = IngestedData.load(path).request.biotools_id
+                    except (OSError, ValueError):
+                        continue
+                    if identifier and identifier.casefold() != key:
+                        matches = matches - {path}
+            if len(matches) > 1:
+                summary.failed += 1
+                names = ", ".join(sorted(path.name for path in matches))
+                report(
+                    BatchEvent(
+                        "invalid",
+                        row.row,
+                        message=(
+                            f"multiple saved data files for {item.biotools_id!r}: "
+                            f"{names}"
+                        ),
+                    )
+                )
+                continue
+            saved_path = next(iter(matches), None)
+            has_saved = saved_path is not None
             if dry_run:
+                target = (
+                    item.request.repository
+                    if item.request
+                    else f"bio.tools:{item.biotools_id}"
+                )
                 action = (
                     "fetch missing sources"
                     if has_saved and fill_missing
@@ -470,13 +502,14 @@ async def evaluate_batch(
                         "plan",
                         item.row,
                         item.biotools_id,
-                        f"{action}: {item.request.repository}",
+                        f"{action}: {target}",
                     )
                 )
             elif has_saved and not fill_missing:
-                saved.append(item)
+                assert saved_path is not None
+                saved.append((item, saved_path))
             else:
-                to_fetch.append((item, has_saved))
+                to_fetch.append((item, saved_path))
     if dry_run or not (saved or to_fetch):
         return summary
 
@@ -487,9 +520,19 @@ async def evaluate_batch(
         _write_replace(results_dir / f"{item.stem}.json", score(data).to_json() + "\n")
 
     # Saved data needs no network, so it is scored right away.
-    for item in saved:
+    def load_saved(item: BatchItem, path: Path) -> IngestedData:
+        data = IngestedData.load(path)
+        identifier = data.request.biotools_id
+        if identifier and identifier.casefold() != item.biotools_id.casefold():
+            raise ValueError(
+                f"{path}: saved bio.tools ID {identifier!r} does not match "
+                f"{item.biotools_id!r}"
+            )
+        return data
+
+    for item, path in saved:
         try:
-            save_result(item, IngestedData.load(raw_dir / f"{item.stem}.json"))
+            save_result(item, load_saved(item, path))
         except Exception as error:
             summary.failed += 1
             report(
@@ -509,39 +552,51 @@ async def evaluate_batch(
 
     token = settings.github_token
     budget = _GitHubBudget(token.get_secret_value(), report) if token else None
-    if budget is None and any(i.request.host == "github.com" for i, _ in to_fetch):
+    if budget is None and any(
+        i.request is None or i.request.host == "github.com" for i, _ in to_fetch
+    ):
         logger.warning(
             "No GitHub token is set, so GitHub allows only 60 requests an hour "
             "and most tools will lack data. Set MATURITY_METER_GITHUB_TOKEN."
         )
     slots = asyncio.Semaphore(jobs)
 
-    async def evaluate(item: BatchItem, has_saved: bool) -> bool:
+    async def evaluate(item: BatchItem, saved_path: Path | None) -> bool:
         log = log_dir / f"{item.stem}.log"
-        raw = raw_dir / f"{item.stem}.json"
+        raw = saved_path or raw_dir / f"{item.stem}.json"
         async with slots:
             with _log_to(log):
-                if budget is not None and item.request.host == "github.com":
-                    await budget.wait()
                 report(
                     BatchEvent(
-                        "start", item.row, item.biotools_id, item.request.repository
+                        "start",
+                        item.row,
+                        item.biotools_id,
+                        item.request.repository
+                        if item.request
+                        else f"bio.tools:{item.biotools_id}",
                     )
                 )
                 start = time.monotonic()
                 try:
                     request = item.request
-                    if has_saved:
+                    if saved_path is not None:
                         # Only the sources missing from the saved data are fetched.
+                        saved_data = load_saved(item, raw)
+                        if request is None:
+                            request = saved_data.request
                         request = EvaluationRequest(
                             repository=request.repository,
                             dois=request.dois,
                             biotools_id=request.biotools_id,
                             data=json.loads(raw.read_text(encoding="utf-8")),
                         )
+                    elif request is None:
+                        request = await resolve_biotools(item.biotools_id)
+                    if budget is not None and request.host == "github.com":
+                        await budget.wait()
                     data = await ingest(request)
                     text = data.to_json() + "\n"
-                    if has_saved:
+                    if saved_path is not None:
                         _write_replace(raw, text)
                     else:
                         _write_new(raw, text)
@@ -549,7 +604,9 @@ async def evaluate_batch(
                 except Exception as error:
                     # One tool must never stop the batch; the traceback goes
                     # to the tool's log.
-                    logger.exception(f"Evaluating {item.request.repository} failed")
+                    logger.exception(
+                        f"Evaluating bio.tools ID {item.biotools_id} failed"
+                    )
                     report(
                         BatchEvent(
                             "failed",
@@ -573,7 +630,7 @@ async def evaluate_batch(
     with _route_tool_logs(), shared_limit(resqui_limit):
         async with shared_client():
             results = await asyncio.gather(
-                *(evaluate(item, has_saved) for item, has_saved in to_fetch)
+                *(evaluate(item, saved_path) for item, saved_path in to_fetch)
             )
     summary.evaluated += sum(results)
     summary.fetched += sum(results)
