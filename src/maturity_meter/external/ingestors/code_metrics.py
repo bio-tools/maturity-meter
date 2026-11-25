@@ -6,41 +6,65 @@ the FAIR Toolbox maturity model's analyzer.
 """
 
 import asyncio
+import contextlib
+import json
 import logging
-import re
 import sys
 from pathlib import Path
 from typing import Any
 
 import lizard
+from lizard_ext.lizardduplicate import LizardExtension
 
+from maturity_meter.config import get_settings
 from maturity_meter.external.protocols import Ingestor
 
 logger = logging.getLogger(__name__)
 
-DUPLICATES_TIMEOUT_SECONDS = 300
-_DUPLICATE_RATE = re.compile(r"Total duplicate rate:\s+([\d.]+)%")
+_WORKER_COMMAND = (
+    "from maturity_meter.external.ingestors.code_metrics import _worker; _worker()"
+)
+_MEMORY_LIMIT_EXIT_CODE = 2
 
 
 class CodeMetricsError(Exception):
     """Raised when the repository cannot be analysed."""
 
 
-async def _run(command: list[str], timeout: float) -> tuple[int, str]:
-    """Run a command, returning its exit code and standard output."""
+async def _run_scan(scan: str, checkout: Path) -> Any:
+    """Run a single scan in a subprocess and read its compact result."""
+    settings = get_settings()
+    timeout = settings.lizard_timeout_seconds
     process = await asyncio.create_subprocess_exec(
-        *command,
+        sys.executable,
+        "-c",
+        _WORKER_COMMAND,
+        scan,
+        str(checkout),
+        str(settings.lizard_memory_mib),
         stdin=asyncio.subprocess.DEVNULL,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.DEVNULL,
     )
+    output = asyncio.create_task(process.communicate())
     try:
-        stdout, _ = await asyncio.wait_for(process.communicate(), timeout=timeout)
+        stdout, _ = await asyncio.wait_for(asyncio.shield(output), timeout=timeout)
     except BaseException:
-        process.kill()
-        await process.wait()
+        with contextlib.suppress(ProcessLookupError):
+            process.kill()
+        await output
         raise
-    return process.returncode or 0, stdout.decode(errors="replace")
+    if process.returncode == _MEMORY_LIMIT_EXIT_CODE:
+        raise CodeMetricsError(
+            f"Lizard {scan} scan ran out of memory "
+            f"(configured limit: {settings.lizard_memory_mib} MiB)"
+        )
+    if process.returncode != 0:
+        raise CodeMetricsError(f"Lizard {scan} scan exited with {process.returncode}")
+    try:
+        return json.loads(stdout)
+    except ValueError as error:
+        raise CodeMetricsError(f"Lizard {scan} scan returned invalid JSON") from error
 
 
 def _complexity(path: Path) -> dict[str, Any]:
@@ -62,6 +86,41 @@ def _complexity(path: Path) -> dict[str, Any]:
     }
 
 
+def _duplicate_rate(path: Path) -> float:
+    """Compute the percentage reported by Lizard's duplicate-code extension."""
+    duplicate = LizardExtension()
+    extensions = lizard.get_extensions([duplicate])
+    for _ in lizard.analyze([str(path)], exts=extensions):
+        pass
+    for _ in duplicate.get_duplicates():
+        pass
+    return float(f"{duplicate.duplicate_rate() * 100:.2f}")
+
+
+def _worker() -> None:
+    """Apply the memory limit in the child before opening repository files."""
+    scan, path, memory_mib = sys.argv[1:]
+    if sys.platform == "linux":
+        import resource
+
+        limit = int(memory_mib) * 1024**2
+        soft, hard = resource.getrlimit(resource.RLIMIT_AS)
+        if soft != resource.RLIM_INFINITY:
+            limit = min(limit, soft)
+        resource.setrlimit(resource.RLIMIT_AS, (limit, hard))
+    try:
+        checkout = Path(path)
+        result: dict[str, Any] | float
+        with contextlib.redirect_stdout(sys.stderr):
+            if scan == "complexity":
+                result = _complexity(checkout)
+            else:
+                result = _duplicate_rate(checkout)
+        print(json.dumps(result))
+    except MemoryError:
+        raise SystemExit(_MEMORY_LIMIT_EXIT_CODE) from None
+
+
 class CodeMetricsIngestor(Ingestor):
     """
     Compute source-code metrics for a repository.
@@ -74,19 +133,6 @@ class CodeMetricsIngestor(Ingestor):
 
     def __init__(self, checkout: Path):
         self.checkout = checkout
-
-    async def _duplicate_rate(self, path: Path) -> float | None:
-        """Duplicate-code rate (%) from Lizard's ``-Eduplicate`` extension."""
-        try:
-            _, output = await _run(
-                [sys.executable, "-m", "lizard", "-Eduplicate", str(path)],
-                DUPLICATES_TIMEOUT_SECONDS,
-            )
-        except TimeoutError:
-            logger.warning("Duplicate-code analysis timed out")
-            return None
-        match = _DUPLICATE_RATE.search(output)
-        return float(match.group(1)) if match else None
 
     async def fetch(self) -> dict[str, Any]:
         """
@@ -105,14 +151,17 @@ class CodeMetricsIngestor(Ingestor):
             If the analysis fails.
         """
         try:
-            complexity, duplicate_rate = await asyncio.gather(
-                asyncio.to_thread(_complexity, self.checkout),
-                self._duplicate_rate(self.checkout),
-            )
-        except Exception as error:
-            # Lizard can fail on unusual source files; report it as this
-            # source being unavailable rather than failing the evaluation.
-            raise CodeMetricsError(f"Code analysis failed: {error!r}") from error
+            complexity = await _run_scan("complexity", self.checkout)
+        except TimeoutError as error:
+            raise CodeMetricsError("Lizard complexity scan timed out") from error
+        try:
+            duplicate_rate = await _run_scan("duplicate-code", self.checkout)
+        except TimeoutError:
+            logger.warning("Lizard duplicate-code scan timed out")
+            duplicate_rate = None
+        except CodeMetricsError as error:
+            logger.warning("Skipping duplicate-code rate: %s", error)
+            duplicate_rate = None
         metrics = {**complexity, "duplicate_rate": duplicate_rate}
         logger.info(f"Computed code metrics for {self.checkout}")
         return metrics

@@ -59,6 +59,13 @@ so use a new output directory to collect newly configured checks.
 Evaluate every tool in a CSV with `biotoolsID`, `homepage` (repository URL)
 and `dois` columns. Multiple DOIs are comma-separated.
 
+Lizard's complexity and duplicate-code scans run sequentially in separate
+subprocesses for each tool. Each scan has a 300-second timeout and, on Linux,
+a 1,024 MiB address-space limit. Override these in `.env` with
+`MATURITY_METER_LIZARD_TIMEOUT_SECONDS` and `MATURITY_METER_LIZARD_MEMORY_MIB`.
+If the complexity scan fails, the evaluation continues without code metrics.
+If only the duplicate-code scan fails, the complexity metrics are kept.
+
 ```bash
 maturity-meter batch "results/bio.tools entries - github_gitlab_tools_with_publications.csv" \
   --output-dir results/batch

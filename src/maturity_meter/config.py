@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     batch_jobs : int
         Number of tools a batch evaluates at the same time, unless the
         command's ``--jobs`` option says otherwise.
+    lizard_memory_mib : int
+        Address-space limit in MiB for each Lizard subprocess on Linux.
+    lizard_timeout_seconds : int
+        Maximum wall time in seconds for each Lizard scan.
     viz_dir : pathlib.Path | None
         Folder with the Node renderer of the radial mosaic, after
         ``npm install`` in it. The ``viz/`` folder of the source checkout is
@@ -72,6 +76,8 @@ class Settings(BaseSettings):
     openalex_api_key: SecretStr | None = None
     resqui_parallel: int | None = Field(default=None, ge=1)
     batch_jobs: int = Field(default=4, ge=1)
+    lizard_memory_mib: int = Field(default=1024, ge=1)
+    lizard_timeout_seconds: int = Field(default=300, ge=1)
     viz_dir: Path | None = None
 
     @field_validator("server_host")
